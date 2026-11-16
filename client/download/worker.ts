@@ -1,3 +1,4 @@
+import { classicPack } from './manifest.ts';
 import { createSHA256, type IHasher } from 'hash-wasm';
 import type { Groups, Manifest, ManifestFile, OpusJob, OpusReply, Pack, Reply, Request } from './protocol.ts';
 
@@ -45,7 +46,7 @@ function readSoon(reader: ReadableStreamDefaultReader<Uint8Array>) {
 
 function packFetch(entry: ManifestFile, suffix: string, part: number | null, init: RequestInit = {}) {
   const path = entry.path.split('/').map(encodeURIComponent).join('/') + suffix;
-  return stallFetch(pack.packBase + path + (part === null ? '' : `?part=${part}`), { cache: 'no-store', ...init });
+  return stallFetch(pack.packBase + path + (part === null ? '' : `?part=${part}&v=${entry.sha256.slice(0, 16)}`), { cache: 'no-store', ...init });
 }
 
 // WasmFS looks names up in lowercase: files are stored lowercase, while URLs and manifest paths keep their spelling.
@@ -93,7 +94,7 @@ async function fetchManifest(url: string) {
   if (!response.ok) throw new Error(`Manifest HTTP ${response.status}`);
   const manifest = await response.json() as Manifest;
   validate(manifest);
-  return manifest;
+  return classicPack(manifest);
 }
 
 // The handle stays open for the whole download: reopening it for each entry stalled createSyncAccessHandle on Five's 1,858 files.

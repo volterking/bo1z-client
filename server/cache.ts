@@ -8,6 +8,25 @@ import { pipeline } from 'node:stream/promises';
 import { brotliDecompressSync, createBrotliDecompress, createGunzip, createZstdDecompress, gunzipSync, zstdDecompressSync } from 'node:zlib';
 
 const UPSTREAM = 'vel.gg';
+// Keep historical /bo1z/ cache keys; only the remote site's directory changed.
+const UPSTREAM_PREFIX = '/' + (process.env.UPSTREAM_PREFIX ?? 'bsz').replace(/^\/+|\/+$/g, '');
+
+export function upstreamPath(url: URL, prefix = UPSTREAM_PREFIX) {
+  const pathname = url.pathname.replace(/^\/bo1z(?=\/|$)/, prefix === '/' ? '' : prefix);
+  return pathname + url.search;
+}
+// The current site's ?part endpoint double-compresses stored Brotli chunks.
+// Its published downloader instead uses cdn.vel.gg/packs/<map>/<file>.br/<part>.
+// Whole files, manifests and videos still use the site endpoint.
+export function upstreamTarget(url: URL, prefix = UPSTREAM_PREFIX) {
+  const pack = /^\/bo1z\/(?:([^/]+)\/)?pack\/(.+)$/.exec(url.pathname);
+  const part = url.searchParams.get('part');
+  if (prefix === '/bsz' && pack && part !== null && /^\d+$/.test(part)) {
+    const version = url.searchParams.get('v');
+    return { host: 'cdn.vel.gg', path: `/packs/${pack[1] ?? 'five'}/${pack[2]}.br/${part}` + (version ? `?v=${encodeURIComponent(version)}` : '') };
+  }
+  return { host: UPSTREAM, path: upstreamPath(url, prefix) };
+}
 const CACHE = path.join(import.meta.dirname, '..', 'cache');
 const FORWARDED = ['content-type', 'content-encoding', 'content-length', 'content-range', 'accept-ranges', 'location'];
 const DECODERS: Record<string, (data: Buffer) => Buffer> = { br: brotliDecompressSync, gzip: gunzipSync, zstd: zstdDecompressSync };
@@ -48,7 +67,7 @@ async function fromDisk({ base, part }: { base: string; part: number | null }): 
 export const pick = (headers: IncomingHttpHeaders): OutgoingHttpHeaders => Object.fromEntries(FORWARDED.filter(name => headers[name]).map(name => [name, headers[name]]));
 
 export const upstream = (url: URL, headers: OutgoingHttpHeaders) => new Promise<IncomingMessage>((resolve, reject) =>
-  https.get({ host: UPSTREAM, path: url.pathname + url.search, headers }, resolve).on('error', reject));
+  https.get({ ...upstreamTarget(url), headers }, resolve).on('error', reject));
 
 // The cache never expires: a patched wasm must stay paired with the scripts and packs of its version.
 // A lone slice is never stored: prefetch.ts rebuilds the whole file and checks its SHA-256.

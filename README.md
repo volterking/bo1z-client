@@ -1,6 +1,6 @@
 # bo1z
 
-Call of Duty: Black Ops zombies in the browser, solo or with up to four players. A fork of the browser port at https://vel.gg/bo1z: its site and its compiled engine live in this repository.
+Call of Duty: Black Ops zombies in the browser, solo or with up to four players. A fork of the browser port at https://vel.gg/bsz: its site and its compiled engine live in this repository.
 
 ## How it works
 
@@ -34,6 +34,7 @@ Then open http://127.0.0.1:8484. Browsers treat `127.0.0.1` as a secure context,
 | `HOST` | `127.0.0.1` | Address to listen on; `0.0.0.0` for the local network. |
 | `PREFIX` | empty | Serves the site under a path, for example `/bo1z`. |
 | `NET_PORT` | `3074` | UDP port of the bridge; `0` disables it. |
+| `UPSTREAM_PREFIX` | `/bsz` | Current game-data directory on vel.gg; historical local cache paths stay under `cache/bo1z/`. |
 | `CACHE` | on | `0` serves the game data straight from vel.gg without writing `cache/`. |
 | `ICE_SERVERS` | Google STUN | JSON list of WebRTC servers used to connect players over the internet. |
 | `TELEMETRY` | off | `1` records telemetry from every page, not only those opened on this machine. |

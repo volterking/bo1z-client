@@ -46,4 +46,13 @@ The existing diagnostics already capture engine aborts, Wasm errors, worker erro
 
 ## Validation and limits
 
-Type checking, production build, unit tests and menu browser tests are run in the development workspace; see the change report for results. They validate settings, target sizing and client behavior, not Chromebook frame rates or map compatibility. This workspace has no N5100 Chromebook. Requests to the upstream Nacht/Kino manifests returned HTTP 403 here, so real asset loads and gameplay cannot be validated in this environment. No FPS improvement, Kino fix, exact texture footprint or native heap reduction is claimed without those measurements.
+Type checking, production build, unit tests and menu browser tests are run in the development workspace; see the change report for results. They validate settings, target sizing and client behavior, not Chromebook frame rates or map compatibility. This workspace has no N5100 Chromebook. The original `/bo1z/` upstream paths are obsolete. Nacht/Kino manifests are now confirmed available under `/bsz/`, and sample asset lengths and SHA-256 hashes have been verified through the relay. No FPS improvement, Kino fix, exact texture footprint or native heap reduction is claimed without those measurements.
+
+
+## Current upstream download routes
+
+The original game is now served at `https://vel.gg/bsz/`. The relay preserves historical `/bo1z/` disk-cache keys but maps outgoing requests to `/bsz/` (configurable with `UPSTREAM_PREFIX`). This fixes the HTTP 404 on the manifest that prevented Render-hosted games from starting downloads.
+
+The current site's `?part=k` route returned still-compressed payloads after HTTP decompression during testing. Like the published upstream downloader, the relay now obtains compressed chunks from `cdn.vel.gg/packs/<map>/<file>.br/<k>`. A SHA-256 prefix is included as the version cache key. Whole files, manifests and videos retain the site endpoint, and all client size/hash validation stays enabled. Unit tests cover both routes and the legacy prefix override.
+
+Current manifests also bundle optional Counter-Strike weapons. This fork uses classic Black Ops weapons, so it excludes `mods/cstest/` before downloading; horde and other existing assets remain. The current Nacht manifest contains about 186 MB of optional Counter-Strike assets before compression. Those files do not need to be downloaded or decoded for classic gameplay.
