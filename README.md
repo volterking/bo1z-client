@@ -1,6 +1,6 @@
 # bo1z
 
-Call of Duty: Black Ops zombies in the browser, solo or with up to four players. A fork of the browser port at https://vel.gg/bo1z: its site and its compiled engine live in this repository.
+Call of Duty: Black Ops zombies in the browser, solo or with up to four players. A fork of the browser port at https://vel.gg/bsz: its site and its compiled engine live in this repository.
 
 ## How it works
 
@@ -34,6 +34,7 @@ Then open http://127.0.0.1:8484. Browsers treat `127.0.0.1` as a secure context,
 | `HOST` | `127.0.0.1` | Address to listen on; `0.0.0.0` for the local network. |
 | `PREFIX` | empty | Serves the site under a path, for example `/bo1z`. |
 | `NET_PORT` | `3074` | UDP port of the bridge; `0` disables it. |
+| `UPSTREAM_PREFIX` | `/bsz` | Current game-data directory on vel.gg; historical local cache paths stay under `cache/bo1z/`. |
 | `CACHE` | on | `0` serves the game data straight from vel.gg without writing `cache/`. |
 | `ICE_SERVERS` | Google STUN | JSON list of WebRTC servers used to connect players over the internet. |
 | `TELEMETRY` | off | `1` records telemetry from every page, not only those opened on this machine. |
@@ -68,3 +69,7 @@ The build (`heroku-postbuild`) builds the site and patches the engine. The `Proc
 - the browser tests (`e2e/`, Playwright with the installed Chrome): the menu, entering each map, pause, two-player and private lobbies, language, download errors.
 
 The browser tests open visible Chrome windows that must stay in front: Chrome only grants mouse capture to a foreground window. They run in French. Chrome profiles are kept in `.cache/e2e`, so each map downloads once.
+
+## Low-memory devices
+
+Options includes fixed internal resolutions, Low/Very low startup graphics presets, renderer selection and an optional FPS/Wasm-memory overlay (also toggled with F3). For a 4 GB Chromebook, start with **800×450, Very low, WebGL 2** in ordinary solo mode. Settings apply on the next map launch. See [the performance investigation](docs/chromebook-performance.md) for memory constraints, texture limitations, and on-device diagnostics.

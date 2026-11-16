@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { leb, parse, rebuild } from '../patch/wasm.ts';
+import { readFileSync } from 'node:fs';
+import { patchEngine } from '../patch/engine.ts';
+import { instructions, leb, parse, rebuild, sleb } from '../patch/wasm.ts';
 
 const I32 = 0x7f;
 const section = (id: number, content: number[]) => [id, ...leb(content.length), ...content];
@@ -50,4 +52,31 @@ test('un appel remplacé par une édition n’est pas renuméroté par-dessus', 
   });
   const { instance } = await WebAssembly.instantiate(patched, { env: { log() {}, extra() {} } });
   assert.equal((instance.exports.callSeven as () => number)(), 9);
+});
+
+
+test('the real renderer mode guard accepts 640x360 and changes only its two dimension constants', () => {
+  const original = readFileSync(new URL('../engine/KisakBlack-web.wasm', import.meta.url));
+  const before = parse(original), after = parse(patchEngine(original));
+  const body = (module: typeof before) => {
+    const index = module.names.get('RB_BrowserRenderIteration(void*)')!;
+    const b = module.bodies[index - module.importedFuncs];
+    return [...instructions(module.bytes, b.code, b.end)];
+  };
+  const a = body(before), b = body(after);
+  const width = a.findIndex((x, i) => x.op === 0x41 && x.value === 800 && a[i + 1]?.op === 0x48);
+  const height = width + 4;
+  assert.equal(a[height].value, 600);
+  assert.equal(b[width].value, 640);
+  assert.equal(b[height].value, 360);
+  assert.equal(a.length, b.length);
+  const added = after.importedFuncs - before.importedFuncs;
+  for (let i = 0; i < a.length; ++i) {
+    assert.equal(b[i].op, a[i].op);
+    assert.equal(b[i].value, i === width ? 640 : i === height ? 360 : a[i].value);
+    if (a[i].index !== undefined) assert.equal(b[i].index, a[i].index! + (a[i].funcAt !== undefined && a[i].index! >= before.importedFuncs ? added : 0));
+  }
+  const changed = new Uint8Array(original);
+  changed.set([0x41, ...sleb(801)], a[width].at);
+  assert.throws(() => patchEngine(changed), /RB_BrowserRenderIteration.*0 site/);
 });

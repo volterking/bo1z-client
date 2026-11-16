@@ -261,6 +261,22 @@ function patches(module: Module) {
     ...STACK, ...i32(512), ...command, 0x04, 0x40, ...i32(0), ...STACK, ...callDefined(module, 'Cbuf_AddText(int, char const*)'), 0x0b,
     ...STACK, ...i32(512), 0x6a, 0x24, ...leb(0),
   ] });
+  // The browser exposes its backing canvas as its display mode. The inlined
+  // R_Init mode filter rejected <800x600 before r_customMode could be used.
+  // Match both comparisons and their branch targets together; a different
+  // engine build must fail here rather than silently patch unrelated constants.
+  const modes = find(module, 'RB_BrowserRenderIteration(void*)', (list, k) =>
+    list[k].op === 0x20 && list[k].index === 1
+    && list[k + 1]?.op === 0x41 && list[k + 1].value === 800
+    && list[k + 2]?.op === 0x48 && list[k + 3]?.op === 0x0d && list[k + 3].index === 0
+    && list[k + 4]?.op === 0x20 && list[k + 4].index === 3
+    && list[k + 5]?.op === 0x41 && list[k + 5].value === 600
+    && list[k + 6]?.op === 0x48 && list[k + 7]?.op === 0x0d && list[k + 7].index === 0, 1);
+  const [mode] = modes.found;
+  for (const [at, minimum] of [[mode + 1, 640], [mode + 5, 360]]) {
+    const ins = modes.list[at];
+    add(modes.index, { at: ins.at, end: ins.end, bytes: i32(minimum) });
+  }
   return edits;
 }
 

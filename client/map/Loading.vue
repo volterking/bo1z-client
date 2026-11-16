@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, shallowReactive, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { diagnostics } from '../game/diagnostics.ts';
+import { loadingReport } from '../game/loading-report.ts';
 import { BASE, hiddenRoom, horde, map, room } from '../game/pack.ts';
 import { enter, type Failure, retry, view } from '../game/session.ts';
 import { HOST } from '../net/lan.ts';
@@ -25,6 +27,25 @@ watchEffect(() => {
 const host = computed(() => hostName.value || t('load.theHost'));
 const details = ref<HTMLDetailsElement>();
 const pre = ref<HTMLPreElement>();
+const loadingDetails = ref<HTMLDetailsElement>();
+const loadingText = ref('');
+const loadingCopied = ref(false);
+const clock = ref(performance.now());
+const clockTimer = setInterval(() => { clock.value = performance.now(); }, 1000);
+function refreshLoadingReport() {
+  loadingText.value = loadingReport(view.screen, view.pct);
+  loadingCopied.value = false;
+}
+async function copyLoadingReport() {
+  refreshLoadingReport();
+  try {
+    await navigator.clipboard.writeText(loadingText.value);
+    loadingCopied.value = true;
+  } catch {
+    loadingDetails.value!.open = true;
+    getSelection()?.selectAllChildren(loadingDetails.value!.querySelector('pre')!);
+  }
+}
 
 const TIPS = tm('load.tips').length;
 let tip = Math.floor(Math.random() * TIPS);
@@ -72,7 +93,13 @@ const parts = computed(() => !Object.keys(view.groups).length ? [] : PARTS.filte
 }));
 const status = computed(() => t(full.value ? 'load.ready' : view.screen === 'loading' ? 'load.engine' : 'load.downloading'));
 const eta = computed(() => {
-  if (full.value || view.eta === null) return '';
+  const now = clock.value;
+  if (full.value) return '';
+  if (view.screen === 'loading') {
+    const start = diagnostics.timings.engineStart;
+    return start === undefined ? '' : t('load.elapsed', { n: Math.max(0, Math.floor((now - start) / 1000)) });
+  }
+  if (view.eta === null) return '';
   if (view.eta < 8) return t('load.almostDone');
   return view.eta < 60 ? t('load.seconds', { n: Math.max(5, Math.round(view.eta / 5) * 5) }) : t('load.minutes', { n: Math.round(view.eta / 60) });
 });
@@ -93,7 +120,7 @@ function click(event: MouseEvent) {
   if (!(event.target as Element).closest('a, button, details')) enter();
 }
 
-onUnmounted(() => clearInterval(tips));
+onUnmounted(() => { clearInterval(tips); clearInterval(clockTimer); });
 </script>
 
 <template>
@@ -111,6 +138,11 @@ onUnmounted(() => clearInterval(tips));
           <div class="kb-track"><i :style="{ width: `${part.pct}%` }"></i></div><span>{{ $t(`load.parts.${part.key}`) }}<em>{{ part.pct > 0 && part.pct < 100 ? $n(part.pct / 100, { style: 'percent' }) : '' }}</em></span>
         </div>
       </div>
+      <details id="loading-details" class="kb-details" ref="loadingDetails" v-if="view.screen === 'loading' && !problem">
+        <summary @click="refreshLoadingReport">{{ $t('load.details') }}</summary>
+        <button class="kb-secondary kb-copy" type="button" @click="copyLoadingReport">{{ $t(loadingCopied ? 'errors.copied' : 'load.copyReport') }}</button>
+        <pre>{{ loadingText }}</pre>
+      </details>
       <p :class="['kb-prompt', { 'kb-off': view.screen !== 'ready' }]">{{ $t('load.enter') }}</p>
       <p class="kb-note" :hidden="!(view.screen === 'ready' && view.declined)"><b>{{ $t('load.mouseRefused') }}</b> {{ $t('load.clickAgain') }}</p>
       <div class="kb-error" :hidden="!problem">

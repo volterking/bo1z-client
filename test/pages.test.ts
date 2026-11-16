@@ -29,7 +29,7 @@ test('le menu et le site sont servis depuis dist/ à la racine, la colle du mote
   const kbnet = await fetch('http://127.0.0.1:8617/kbnet.js');
   assert.match(await kbnet.text(), /export\s*\{/);
   assert.equal(kbnet.headers.get('cache-control'), 'public, max-age=0');
-  const asset = /assets\/index-\w+\.js/.exec(await (await fetch('http://127.0.0.1:8617/')).text())![0];
+  const asset = /assets\/index-[\w-]+\.js/.exec(await (await fetch('http://127.0.0.1:8617/')).text())![0];
   assert.equal((await fetch(`http://127.0.0.1:8617/${asset}`)).headers.get('cache-control'), 'public, max-age=31536000, immutable');
 });
 

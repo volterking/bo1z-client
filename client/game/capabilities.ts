@@ -19,7 +19,7 @@ const SIMD = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123
 
 function wasmSupport() {
   try {
-    // One page checks shared memory without reserving the game's 1.5 GiB twice.
+    // One page checks shared memory without reserving the game's roughly 2 GiB twice.
     const memory = new WebAssembly.Memory({ initial: 1, maximum: 24576, shared: true });
     return memory.buffer instanceof SharedArrayBuffer && WebAssembly.validate(THREADS) && WebAssembly.validate(SIMD);
   } catch {

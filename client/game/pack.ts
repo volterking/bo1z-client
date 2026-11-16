@@ -17,4 +17,5 @@ export const packBase = `${root}pack/`;
 export const opfsRoot = `/opfs/${opfs}/files`;
 // The horde manifest is the map's plus the mods' small boot files: a player who has the map only fetches those.
 export const pack: Pack = { manifestUrl: horde ? `${packBase}web-manifest-horde.json` : `${root}manifest.json`, packBase, opfs };
-export const programsUrl = `${BASE}artifacts/${map.slug}-programs.json`;
+// Only Five publishes a program seed. Missing seeds for other maps are optional, not load errors.
+export const programsUrl = map.programs ? `${BASE}artifacts/${map.slug}-programs.json` : null;

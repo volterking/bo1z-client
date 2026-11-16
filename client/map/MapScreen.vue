@@ -3,9 +3,10 @@ import { defineAsyncComponent, onMounted, onUnmounted, ref, useTemplateRef } fro
 import { map } from '../game/pack.ts';
 import { startSession, view } from '../game/session.ts';
 import Loading from './Loading.vue';
+import { loadSettings } from '../game/settings.ts';
 
 const Perf = defineAsyncComponent(() => import('./Perf.vue'));
-const perf = ref<'off' | 'compact' | 'detail'>('off');
+const perf = ref<'off' | 'compact' | 'detail'>(loadSettings().showPerf ? 'compact' : 'off');
 const game = useTemplateRef<HTMLCanvasElement>('game');
 
 // F3, caught on window before the game's keys and Chrome's find-next: compact, detailed, hidden.

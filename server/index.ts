@@ -110,7 +110,7 @@ app.setNotFoundHandler(async (request, reply) => {
   // Its URLs are relative to the site directory: under /<map>/, they would point at /<map>/assets/.
   if (page && site.endsWith('/')) return reply.redirect(`${PREFIX}${site.slice(1, -1)}${url.search}`, 302);
   if (page) return reply.sendFile('index.html');
-  // On vel.gg, and so in cache/, everything lives under /bo1z/.
+  // Historical /bo1z/ cache keys stay stable; upstream() maps them to the current remote prefix.
   const remote = new URL(`/bo1z${site}${url.search}`, 'http://127.0.0.1');
   const headers = Object.fromEntries(['user-agent', 'accept-encoding'].filter(name => request.headers[name]).map(name => [name, request.headers[name]]));
   if (!CACHE) {

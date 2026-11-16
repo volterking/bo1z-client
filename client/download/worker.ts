@@ -1,9 +1,10 @@
+import { classicPack } from './manifest.ts';
 import { createSHA256, type IHasher } from 'hash-wasm';
 import type { Groups, Manifest, ManifestFile, OpusJob, OpusReply, Pack, Reply, Request } from './protocol.ts';
 
 // Only this worker writes a map's files, under a cross-tab lock: the journal (cache.json) and the files never race.
 const reply = postMessage as (message: Reply) => void;
-const PARALLEL = 3;
+let parallel = 3, decodeParallel = 4;
 // A request with no response, or a body with no bytes, for 30 s is aborted: the retries take over instead of waiting forever.
 const FETCH_STALL_MS = 30000;
 // A clip decodes in milliseconds, but Firefox 157 sometimes never answered one: its worker is replaced, 3 times at most.
@@ -45,7 +46,7 @@ function readSoon(reader: ReadableStreamDefaultReader<Uint8Array>) {
 
 function packFetch(entry: ManifestFile, suffix: string, part: number | null, init: RequestInit = {}) {
   const path = entry.path.split('/').map(encodeURIComponent).join('/') + suffix;
-  return stallFetch(pack.packBase + path + (part === null ? '' : `?part=${part}`), { cache: 'no-store', ...init });
+  return stallFetch(pack.packBase + path + (part === null ? '' : `?part=${part}&v=${entry.sha256.slice(0, 16)}`), { cache: 'no-store', ...init });
 }
 
 // WasmFS looks names up in lowercase: files are stored lowercase, while URLs and manifest paths keep their spelling.
@@ -93,7 +94,7 @@ async function fetchManifest(url: string) {
   if (!response.ok) throw new Error(`Manifest HTTP ${response.status}`);
   const manifest = await response.json() as Manifest;
   validate(manifest);
-  return manifest;
+  return classicPack(manifest);
 }
 
 // The handle stays open for the whole download: reopening it for each entry stalled createSyncAccessHandle on Five's 1,858 files.
@@ -210,7 +211,7 @@ async function fetchOpus(entry: ManifestFile, handle: FileSystemFileHandle, base
         if (!zip) setRecord(raw.id, raw.off, raw.bytes.length, await crypto.subtle.digest('SHA-256', raw.bytes));
       }
       const byId = new Map(jobs.map(job => [job.id, job]));
-      const slots = Array.from({ length: Math.min(4, navigator.hardwareConcurrency || 4) }, () => ({ worker: null as Worker | null, job: null as typeof jobs[number] | null, sent: 0 }));
+      const slots = Array.from({ length: Math.min(decodeParallel, navigator.hardwareConcurrency || 4) }, () => ({ worker: null as Worker | null, job: null as typeof jobs[number] | null, sent: 0 }));
       let next = 0, doneBytes = 0, restarts = 0, watchdog = 0;
       try {
         await new Promise<void>((resolve, reject) => {
@@ -487,7 +488,7 @@ async function download({ want }: Request) {
       if (priority === 'boot') files.sort((a, b) => bootRank(a) - bootRank(b));
       classTotal = files.reduce((sum, file) => sum + file.size, 0);
       let cursor = 0;
-      await Promise.all(Array.from({ length: PARALLEL }, async () => {
+      await Promise.all(Array.from({ length: parallel }, async () => {
         while (cursor < files.length) {
           const entry = files[cursor++];
           await fetchFile(entry, base);
@@ -541,6 +542,8 @@ async function inspect({ want }: Request) {
 
 onmessage = ({ data: request }: MessageEvent<Request>) => {
   pack = request.pack;
+  parallel = request.lowMemory ? 1 : 3;
+  decodeParallel = request.lowMemory ? 1 : 4;
   navigator.locks.request(LOCK, () => (request.type === 'inspect' ? inspect(request) : download(request))).catch((error: Error) => {
     reply({ type: 'error', message: error.message, name: error.name, storage: error instanceof StorageError });
   });
