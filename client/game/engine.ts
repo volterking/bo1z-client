@@ -367,6 +367,11 @@ export function createEngine(options: EngineOptions) {
     Object.assign(diagnostics, { renderer: renderer === 'webgpu' ? 'webgpu-pending' : 'webgl2', rendererRequested: renderer, rendererReason: reason, rendererDetail: null });
     const join = await options.join;
     await installMod(options.opfsRoot);
+    // Optional engine frame cap. Unset = original unlimited behavior.
+    // com_maxfps is a game-engine dvar; verify the actual presented FPS in F3.
+    const fpsParam = new URLSearchParams(location.search).get('fps');
+    const fpsCap = fpsParam && /^\\d+$/.test(fpsParam) ? Number(fpsParam) : 0;
+    const safeFpsCap = fpsCap >= 15 && fpsCap <= 240 ? Math.round(fpsCap) : 0;
     // Dvars precede +devmap so that startup receives the player's settings.
     const args = [
       '+set', 'fs_b', options.opfsRoot, '+set', 'fs_h', '/opfs/user', '+set', 'fs_game', MOD,
@@ -376,7 +381,7 @@ export function createEngine(options: EngineOptions) {
       // r_clear defaults to 2: a blue and orange blink every 512 ms, a development aid.
       '+set', 'r_clear', '0',
       // The canvas thread paces frames with requestAnimationFrame; an integer cap would hold a 120 Hz display at 60.
-      '+set', 'r_vsync', '0', '+set', 'com_maxfps', '0',
+      '+set', 'r_vsync', '0', '+set', 'com_maxfps', String(safeFpsCap),
       '+set', 'snd_softwaremixer', '1', '+set', 'snd_softwarewav', '0', '+set', 'snd_softwaretable', `${options.opfsRoot}/web/sound`,
       ...(rendererRoute === 'main-pthread' ? ['+set', 'r_smp_backend', '0'] : []),
       ...(renderer === 'webgpu' ? ['+set', 'r_webgpu', '1', '+set', 'r_webgpu_pipeline', String(pipeline)] : []),
