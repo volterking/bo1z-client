@@ -2,7 +2,7 @@
 
 ## What is editable
 
-The Vue/TypeScript launcher, canvas sizing, downloader, telemetry and generated engine JavaScript are published. The engine is a precompiled WebAssembly binary. `patch/` makes specific binary patches; it is not a native engine build system. The native `websys`, `webd3d` and `websound` source and shader translation toolchain are unpublished. This change does not rewrite the binary, shader packs or generated renderer.
+The Vue/TypeScript launcher, canvas sizing, downloader, telemetry and generated engine JavaScript are published. The engine is a precompiled WebAssembly binary. `patch/` makes specific binary patches; it is not a native engine build system. The native `websys`, `webd3d` and `websound` source and shader translation toolchain are unpublished. This change does not rebuild the native renderer or shaders. It extends the existing checked Wasm patch pipeline with one precisely matched display-mode guard, described below; the original engine artifact in `engine/` is preserved.
 
 ## Findings
 
@@ -46,7 +46,7 @@ The existing diagnostics already capture engine aborts, Wasm errors, worker erro
 
 ## Validation and limits
 
-Type checking, production build, unit tests and menu browser tests are run in the development workspace; see the change report for results. They validate settings, target sizing and client behavior, not Chromebook frame rates or map compatibility. This workspace has no N5100 Chromebook. The original `/bo1z/` upstream paths are obsolete. Nacht/Kino manifests are now confirmed available under `/bsz/`, and sample asset lengths and SHA-256 hashes have been verified through the relay. No FPS improvement, Kino fix, exact texture footprint or native heap reduction is claimed without those measurements.
+Type checking, the production build and all 33 unit tests pass; the graphics change also passed eight menu/settings browser tests. A persistent-profile Chromium 156 smoke test completed the real Nacht download with integrity checks and reached the ready screen at 800×450, Very low, WebGL 2 after the minimum-mode patch. This used software graphics, not the target Chromebook. They validate settings, target sizing and client behavior, not Chromebook frame rates or map compatibility. This workspace has no N5100 Chromebook. The original `/bo1z/` upstream paths are obsolete. Nacht/Kino manifests are now confirmed available under `/bsz/`, and sample asset lengths and SHA-256 hashes have been verified through the relay. No measured FPS improvement, graphics-related Kino fix, exact texture footprint or native heap reduction is claimed without on-device measurements.
 
 
 ## Current upstream download routes
@@ -56,3 +56,12 @@ The original game is now served at `https://vel.gg/bsz/`. The relay preserves hi
 The current site's `?part=k` route returned still-compressed payloads after HTTP decompression during testing. Like the published upstream downloader, the relay now obtains compressed chunks from `cdn.vel.gg/packs/<map>/<file>.br/<k>`. A SHA-256 prefix is included as the version cache key. Whole files, manifests and videos retain the site endpoint, and all client size/hash validation stays enabled. Unit tests cover both routes and the legacy prefix override.
 
 Current manifests also bundle optional Counter-Strike weapons. This fork uses classic Black Ops weapons, so it excludes `mods/cstest/` before downloading; horde and other existing assets remain. The current Nacht manifest contains about 186 MB of optional Counter-Strike assets before compression. Those files do not need to be downloaded or decoded for classic gameplay.
+
+
+## Native minimum display mode
+
+A real Nacht download completed, then startup exposed a native guard rejecting display modes below 800×600, including 800×450. The published Wasm includes function names and the repository already has a checked instruction rewriter. `patch/engine.ts` now matches the width/height comparisons and branch targets together inside `RB_BrowserRenderIteration(void*)`, and changes only their minimum constants from 800/600 to 640/360. This is a build-time binary patch, not an engine source rebuild or a change to rendering algorithms. A changed engine layout fails the build rather than applying the patch loosely.
+
+The unit test checks the actual shipped binary, compares the renderer function's instruction stream before/after (apart from the existing import-index relocation), and checks rejection when the expected original guard is changed. The engine's fixed heap size is unchanged.
+
+The 800×450 smoke test confirmed `KISAK_BROWSER map-loaded zombie_cod5_prototype` and `view.screen === ready`, with no failure reported. It did not measure N5100 frame rates, play a round, or validate Kino gameplay.
