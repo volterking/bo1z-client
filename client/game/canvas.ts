@@ -6,19 +6,22 @@
 export function sizeGameCanvas(canvas: HTMLCanvasElement) {
   const width = Math.max(1, innerWidth), height = Math.max(1, innerHeight);
   const params = new URLSearchParams(location.search);
-  const lite = params.get('lite') === '1';
+  const liteLevel = ['1', '2', '3'].includes(params.get('lite') ?? '') ? Number(params.get('lite')) : 0;
+  const lite = liteLevel > 0;
   const rawScale = Number(params.get('renderScale'));
   const customScale = params.has('renderScale') && Number.isFinite(rawScale) && rawScale > 0
-    ? Math.min(1, Math.max(0.25, rawScale))
+    ? Math.min(1, Math.max(0.15, rawScale))
     : null;
 
   let scale: number;
   if (lite) {
     // Keep aspect ratio while limiting the real WebGL/WebGPU backbuffer.
     // A Chromebook at 1366x768 renders at 640x360 by default.
-    scale = customScale ?? Math.min(1, 640 / width, 480 / height);
+    const targetWidth = liteLevel === 3 ? 320 : liteLevel === 2 ? 480 : 640;
+    const targetHeight = liteLevel === 3 ? 240 : liteLevel === 2 ? 360 : 480;
+    scale = customScale ?? Math.min(1, targetWidth / width, targetHeight / height);
     // The WebAssembly engine may expect a usable viewport; don't go below 320x180.
-    scale = Math.max(scale, 320 / width, 180 / height);
+    scale = Math.max(scale, 256 / width, 144 / height);
   } else {
     const density = Math.min(devicePixelRatio || 1, 1920 / width, 1440 / height);
     scale = Math.max(density, 800 / width, 600 / height);
@@ -27,7 +30,7 @@ export function sizeGameCanvas(canvas: HTMLCanvasElement) {
   canvas.width = Math.max(1, Math.round(width * scale));
   canvas.height = Math.max(1, Math.round(height * scale));
   const size = { width: canvas.width, height: canvas.height };
-  console.info(`BO1Z rendering: ${size.width}x${size.height} (${lite ? 'Chromebook Lite' : 'default'})`);
+  console.info(`BO1Z rendering: ${size.width}x${size.height} (${lite ? `Chromebook Lite ${liteLevel}` : 'default'})`);
 
   function fit() {
     const fitScale = Math.min(innerWidth / size.width, innerHeight / size.height);
