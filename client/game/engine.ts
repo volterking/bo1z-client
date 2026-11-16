@@ -1,3 +1,6 @@
+/// <reference path="./engine-layout.d.ts" />
+import { heapBreakAddress } from 'virtual:bo1z-engine-layout';
+import { memoryReader } from './memory.ts';
 import { graphicsArguments } from './graphics.ts';
 import { loadSettings } from './settings.ts';
 import type { ManifestFile, Stream } from '../download/protocol.ts';
@@ -25,11 +28,8 @@ type KisakModule = {
   _KB_PackReleaseAll(): void;
   _KB_PresentRing(): number;
   _KB_SetProgramManifest(pointer: number, length: number): void;
-  _KB_MemoryStats(which: number): number;
   _KB_EngineAllocStats(which: number): number;
   _KB_WebResourceStats(which: number): number;
-  _KB_VirtualMemoryStats(which: number): number;
-  _KB_AudioMemoryStats(which: number): number;
   kbVideo: { register(streams: Stream[]): void; setMaster(master: number): void; finishIntro(): void };
   PThread: { terminateAllThreads(): void };
 };
@@ -138,6 +138,7 @@ type EngineOptions = {
 export function createEngine(options: EngineOptions) {
   const { canvas, zone } = options;
   const control = new SharedArrayBuffer(16), counters = new Int32Array(control);
+  let readMemory: ReturnType<typeof memoryReader> | null = null;
   let module: KisakModule | null = null, context: AudioContext | null = null, node: AudioWorkletNode | null = null, mixer: Mixer | null = null;
   let pump: ReturnType<typeof setInterval> | undefined, pointer = 0, pausedDrainAt = performance.now(), running = false, configured = false, generation = 0;
   let starting: Promise<unknown> | null = null, stopped = false, quitting = false;
@@ -344,6 +345,7 @@ export function createEngine(options: EngineOptions) {
       kbnetShared: options.net.shared, kbnetForward: options.net.forward,
     });
     if (stopped) return engine.PThread.terminateAllThreads();
+    readMemory = memoryReader(engine, heapBreakAddress);
     diagnostics.timings.wasmReady = performance.now();
     // Cinematics are played by <video> with range requests, never stored in OPFS.
     if (options.streams.length) engine.kbVideo.register(options.streams);
@@ -513,16 +515,7 @@ export function createEngine(options: EngineOptions) {
       master = value;
       module?.kbVideo.setMaster(value);
     },
-    telemetryMemory() {
-      if (!module) return null;
-      const wasmBytes = module.HEAPF32.buffer.byteLength, wasmBreak = module._KB_MemoryStats(3);
-      return { wasmBytes, wasmBreak, wasmUnclaimedBytes: wasmBytes - wasmBreak,
-        engineZBytes: module._KB_EngineAllocStats(0), engineHunkUsed: module._KB_EngineAllocStats(1), enginePMemUsed: module._KB_EngineAllocStats(2),
-        textureStagingBytes: module._KB_WebResourceStats(0), bufferStagingBytes: module._KB_WebResourceStats(1),
-        liveTextures: module._KB_WebResourceStats(2), programCount: module._KB_WebResourceStats(6),
-        virtualReservedBytes: module._KB_VirtualMemoryStats(0),
-        audioCachedPCMBytes: module._KB_AudioMemoryStats(0), audioCachedClips: module._KB_AudioMemoryStats(1), audioPCMEvictions: module._KB_AudioMemoryStats(2) };
-    },
+    telemetryMemory: () => readMemory?.() ?? null,
     audioSnapshot() {
       const fill = mixer ? (Atomics.load(new Int32Array(mixer.buffer, mixer.write, 1), 0) - Atomics.load(new Int32Array(mixer.buffer, mixer.read, 1), 0)) >>> 0 : null;
       return { contextState: context?.state ?? null, frames: Atomics.load(counters, 0) >>> 0, underruns: Atomics.load(counters, 2), fill,

@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import { patchEngine } from './patch/engine.ts';
+import { engineLayout } from './patch/layout.ts';
 
 const client = (file: string) => path.resolve(import.meta.dirname, 'client', file);
 const engine = (file: string) => readFile(path.resolve(import.meta.dirname, 'engine', file));
@@ -11,6 +12,15 @@ const engine = (file: string) => readFile(path.resolve(import.meta.dirname, 'eng
 // The glue spawns its threads from its own URL and the engine runs the wasm next to it: both stay out of the bundle, in artifacts/.
 const artifacts: Plugin = {
   name: 'bo1z-engine',
+  resolveId(id) {
+    if (id === 'virtual:bo1z-engine-layout') return '\0bo1z-engine-layout';
+  },
+  async load(id) {
+    if (id === '\0bo1z-engine-layout') {
+      const { heapBreakAddress } = engineLayout(await engine('KisakBlack-web.wasm'));
+      return `export const heapBreakAddress = ${heapBreakAddress};`;
+    }
+  },
   async generateBundle() {
     this.emitFile({ type: 'asset', fileName: 'artifacts/KisakBlack-web.mjs', source: await engine('KisakBlack-web.mjs') });
     this.emitFile({ type: 'asset', fileName: 'artifacts/KisakBlack-web.wasm', source: patchEngine(await engine('KisakBlack-web.wasm')) });

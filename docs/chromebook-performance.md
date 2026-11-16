@@ -46,7 +46,7 @@ The existing diagnostics already capture engine aborts, Wasm errors, worker erro
 
 ## Validation and limits
 
-Type checking, the production build and all 33 unit tests pass; the graphics change also passed eight menu/settings browser tests. A persistent-profile Chromium 156 smoke test completed the real Nacht download with integrity checks and reached the ready screen at 800×450, Very low, WebGL 2 after the minimum-mode patch. This used software graphics, not the target Chromebook. They validate settings, target sizing and client behavior, not Chromebook frame rates or map compatibility. This workspace has no N5100 Chromebook. The original `/bo1z/` upstream paths are obsolete. Nacht/Kino manifests are now confirmed available under `/bsz/`, and sample asset lengths and SHA-256 hashes have been verified through the relay. No measured FPS improvement, graphics-related Kino fix, exact texture footprint or native heap reduction is claimed without on-device measurements.
+Type checking, the production build and all 35 unit tests pass; the graphics change also passed eight menu/settings browser tests. A persistent-profile Chromium 156 smoke test completed the real Nacht download with integrity checks and reached the ready screen at 800×450, Very low, WebGL 2 after the minimum-mode patch. This used software graphics, not the target Chromebook. They validate settings, target sizing and client behavior, not Chromebook frame rates or map compatibility. This workspace has no N5100 Chromebook. The original `/bo1z/` upstream paths are obsolete. Nacht/Kino manifests are now confirmed available under `/bsz/`, and sample asset lengths and SHA-256 hashes have been verified through the relay. No measured FPS improvement, graphics-related Kino fix, exact texture footprint or native heap reduction is claimed without on-device measurements.
 
 
 ## Current upstream download routes
@@ -75,3 +75,20 @@ During loading, expand **Loading details** and select **Copy loading report**. T
 Nacht does not publish an optional `nacht-programs.json` seed. The previous HTTP 404 was tolerated by the loader and did not prevent the successful Nacht smoke test. The client now only requests the seed for Five, which publishes one. A missing seed should not be diagnosed as the cause of a Chromebook stall without other evidence.
 
 The on-device report is still needed to distinguish long asset/shader processing, renderer failure and memory pressure. The new reporting interface is not a claimed fix for an unidentified engine hang.
+
+## Removing blocking statistics calls from the page
+
+Inspection of the shipped Wasm confirmed that `KB_MemoryStats` walks the allocator under its mutex even for selector 3 (the heap break). `KB_VirtualMemoryStats` takes a native mutex and traverses reservation metadata. `KB_AudioMemoryStats` takes a recursive mutex and can traverse audio-cache entries. The FPS/memory panel called these synchronously every 500 ms, including during map startup. Telemetry also used them. A browser page waiting on a mutex held by a loading or failed worker can become unresponsive; try/catch cannot interrupt a blocked call. This is a concrete code risk matching a page-only freeze, but not proof of the Chromebook's root cause.
+
+The page no longer calls those three statistics exports. The build derives the shared heap-break address from the shipped `sbrk` function's matching atomic load/update instructions. The page reads that slot with `Atomics.load`, plus the existing bounded engine/texture counters. The build rejects a mismatched layout or a newly blocking/calling/looping implementation in the remaining counter getters. It does not hard-code a guessed address for future engine versions or rewrite the native memory allocator.
+
+Virtual reservation and audio-cache statistics now return `null` (unavailable), rather than risking the UI or claiming zero. Wasm break/capacity, engine allocation counters and texture staging/counts remain available. Unit tests make the old mutex-backed methods fail if called, verify the break snapshot updates atomically, and reject a changed layout or a getter that introduces a native call.
+
+### Developer gameplay smoke test
+
+Run the server and execute `node test/chromebook-smoke.mjs`. It uses a persistent Chrome profile for verified map files, enables 800×450 / Very low / WebGL 2 / FPS-memory display, and uses Chrome's CPU-throttling rate 2. It checks page heartbeat responsiveness while loading, enters gameplay with pointer lock, queries that the game is unpaused, waits for real game presentations, and checks the pause menu. Screenshots are written under `.cache/`.
+
+Options: `SMOKE_BASE` (default `http://127.0.0.1:8484`), `SMOKE_PROFILE`, `SMOKE_CHROME` (installed executable; otherwise the Chrome channel), `SMOKE_CPU_RATE`, `SMOKE_HEADED=1`, and `SMOKE_SOFTWARE=1` for the software renderer used in this workspace. `SMOKE_NO_SANDBOX=1` is only for execution environments that require it. This test does **not** emulate 4 GB RAM, Intel graphics, or ChromeOS. First-person shader compilation can continue after the map-loaded event, so it tests actual presented gameplay frames rather than treating Ready as sufficient.
+
+
+The extended smoke test passed in this workspace with CPU-throttling rate 2, the software renderer, and the memory panel enabled: real Nacht loaded, pointer lock and the unpaused state were verified, at least 30 gameplay presents were observed, the game canvas contained visible world pixels, and Escape paused the game. The page continued answering probes; the maximum measured JavaScript heartbeat gap was about 1.95 seconds during startup. Screenshots were inspected to confirm the world/weapon rendered rather than accepting an all-black image. These observations demonstrate the tested UI/game flow, not usable N5100 frame rates or a 4 GB RAM guarantee. All 35 unit tests, type checks and the production build passed for this change.
