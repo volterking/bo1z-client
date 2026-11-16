@@ -8,7 +8,7 @@ export type Manifest = { schema: number; version: string; total_bytes: number; c
 export type Pack = { manifestUrl: string; packBase: string; opfs: string };
 export type Groups = Record<string, [number, number]>;
 
-export type Request = { type: 'inspect' | 'download'; pack: Pack; want: string[] };
+export type Request = { type: 'inspect' | 'download'; pack: Pack; want: string[]; lowMemory?: boolean };
 // storage: the browser could not read or write its own files, which is not a network failure.
 export type Reply =
   | { type: 'manifest'; manifest: Manifest }

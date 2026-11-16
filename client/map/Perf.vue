@@ -37,7 +37,7 @@ let totalOver33 = 0, netPrevious: { t: number; sent: number; received: number } 
 const graph = ref<HTMLCanvasElement>();
 const s = reactive({
   present: summarize([], 1), sinceLastMs: null as number | null, raf: summarize([], 1), busyPct: null as number | null,
-  renderer: '–', size: '–', memory: '–', under: null as number | null, sent: 0, received: 0,
+  renderer: '–', size: '–', memory: '–', textures: '–', staging: '–', under: null as number | null, sent: 0, received: 0,
 });
 
 function rafTick(t: number) {
@@ -125,6 +125,8 @@ function update() {
     audio = engine?.audioSnapshot();
   } catch {}
   s.memory = memory ? `${num((memory.wasmBreak ?? memory.wasmBytes) / 2 ** 30, 2)} / ${n(memory.wasmBytes / 2 ** 30, { style: 'unit', unit: 'gigabyte', minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '–';
+  s.textures = memory ? String(memory.liveTextures) : '–';
+  s.staging = memory ? `${num(memory.textureStagingBytes / 2 ** 20)} MiB` : '–';
   s.under = audio?.underruns ?? null;
   const rate = (key: 'sent' | 'received') => (netPrevious ? Math.round((traffic[key] - netPrevious[key]) * 1000 / (t - netPrevious.t)) : 0);
   s.sent = rate('sent');
@@ -159,6 +161,7 @@ onUnmounted(() => {
     <div class="fps"><b :class="s.present.frames ? tone(s.present.fps) : 'bad'">{{ s.present.frames ? Math.round(s.present.fps) : '–' }}</b><span>FPS</span><em>{{ num(s.present.p50Ms) }} ms</em></div>
     <canvas ref="graph"></canvas>
     <div class="row" v-if="mode === 'compact'"><span>p95 <b>{{ num(s.present.p95Ms) }} ms</b></span><span>{{ $t('perf.hitches') }} <b :class="s.present.over33 ? 'warn' : ''">{{ s.present.over33 }}</b></span></div>
+    <div class="row" v-if="mode === 'compact'"><span>{{ $t('perf.memory') }} <b>{{ s.memory }}</b></span></div>
     <div class="rows" v-else>
       <div class="row"><span>{{ $t('perf.median') }} <b>{{ num(s.present.p50Ms) }} ms</b></span><span>p95 <b>{{ num(s.present.p95Ms) }} ms</b></span></div>
       <div class="row"><span>{{ $t('perf.low') }} <b>{{ s.present.p99Ms ? `${Math.round(1000 / s.present.p99Ms)} FPS` : '–' }}</b></span><span>{{ $t('perf.worst') }} <b>{{ num(s.present.maxMs) }} ms</b></span></div>
@@ -167,6 +170,7 @@ onUnmounted(() => {
       <div class="group"><h4>{{ $t('perf.engine') }}</h4>
         <div class="row"><span>{{ $t('perf.render') }} <b>{{ s.renderer }}</b></span><span>{{ $t('perf.size') }} <b>{{ s.size }}</b></span></div>
         <div class="row"><span>{{ $t('perf.memory') }} <b>{{ s.memory }}</b></span></div>
+        <div class="row"><span>{{ $t('perf.textures') }} <b>{{ s.textures }}</b></span><span>{{ $t('perf.staging') }} <b>{{ s.staging }}</b></span></div>
         <div class="row"><span>{{ $t('perf.page') }} <b>{{ s.raf.frames ? Math.round(s.raf.fps) : '–' }}</b> FPS</span><span>{{ $t('perf.busy') }} <b>{{ s.busyPct === null ? '–' : $n(s.busyPct / 100, { style: 'percent' }) }}</b></span></div>
       </div>
       <div class="group"><h4>{{ $t('perf.sound') }}</h4>
@@ -183,7 +187,7 @@ onUnmounted(() => {
 
 <style>
 #perf-overlay { position: fixed; top: 10px; left: 10px; z-index: 2147483647; pointer-events: none; user-select: none; display: grid; gap: 6px;
-  padding: 10px 12px; background: rgba(10, 8, 7, .78); border: 1px solid rgba(255, 240, 220, .12); backdrop-filter: blur(6px);
+  padding: 10px 12px; background: rgba(10, 8, 7, .78); border: 1px solid rgba(255, 240, 220, .12);
   color: #f3ede2; font: 13px/1.4 ui-monospace, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
 #perf-overlay.compact { width: 236px; } #perf-overlay.detail { width: 318px; gap: 4px; }
 #perf-overlay .fps { display: flex; align-items: baseline; gap: 8px; }

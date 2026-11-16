@@ -68,3 +68,7 @@ The build (`heroku-postbuild`) builds the site and patches the engine. The `Proc
 - the browser tests (`e2e/`, Playwright with the installed Chrome): the menu, entering each map, pause, two-player and private lobbies, language, download errors.
 
 The browser tests open visible Chrome windows that must stay in front: Chrome only grants mouse capture to a foreground window. They run in French. Chrome profiles are kept in `.cache/e2e`, so each map downloads once.
+
+## Low-memory devices
+
+Options includes fixed internal resolutions, Low/Very low startup graphics presets, renderer selection and an optional FPS/Wasm-memory overlay (also toggled with F3). For a 4 GB Chromebook, start with **800×450, Very low, WebGL 2** in ordinary solo mode. Settings apply on the next map launch. See [the performance investigation](docs/chromebook-performance.md) for memory constraints, texture limitations, and on-device diagnostics.

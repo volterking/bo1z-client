@@ -1,3 +1,4 @@
+import { memoryConstrained } from './graphics.ts';
 import { shallowReactive, watch } from 'vue';
 import type { Groups, Manifest, Reply } from '../download/protocol.ts';
 import * as net from '../net/link.ts';
@@ -28,6 +29,7 @@ export const view = shallowReactive({
 const LOAD_VOLUME = 0.1;
 const MEMORY = /out of memory|\bOOM\b|allocat.*memory|memory.*allocat/i;
 const settings = loadSettings();
+const lowMemory = memoryConstrained(settings.graphics, (navigator as Navigator & { deviceMemory?: number }).deviceMemory);
 const telemetry = startTelemetry(BASE, { screen: () => view.screen, engine: () => engine, errorKind: () => view.failure?.kind ?? null });
 
 let canvas: HTMLCanvasElement;
@@ -68,7 +70,7 @@ function post(type: 'inspect' | 'download') {
   const worker = downloader!;
   rendererChoice().then(choice => {
     want = choice.renderer === 'webgl2' ? [glslPack] : [];
-    worker.postMessage({ type, pack, want });
+    worker.postMessage({ type, pack, want, lowMemory });
   });
 }
 
@@ -85,7 +87,7 @@ function newDownloader() {
       manifest = data.manifest;
       diagnostics.timings.manifest = performance.now();
       gate ??= createPackGate(manifest.files, want);
-      if (!engine) loadEngine();
+      if (!engine && !lowMemory) loadEngine();
     } else if (data.type === 'file-ready') gate?.fileReady(data.path);
     else if (data.type === 'cache-status') {
       cache = data;
@@ -105,8 +107,9 @@ function newDownloader() {
       manifest = data.manifest;
       gate?.release();
       if (view.screen === 'download') show('loading');
-      if (!engine) loadEngine();
+      if (!engine && !lowMemory) loadEngine();
     } else if (data.type === 'complete') {
+      if (lowMemory && booted && !engine && !view.failure) loadEngine();
       downloading = false;
       worker.terminate();
     } else if (data.type === 'error') downloadError(data.message, data.name, data.storage);
@@ -120,7 +123,11 @@ function downloadError(message: string, name: string, storage: boolean) {
   downloader?.terminate();
   diagnostics.errors.push(message);
   // The whole pack downloads before startup: an error afterwards deprives the game of nothing.
-  if (booted) return;
+  if (booted) {
+    // Optional files failing must not strand a serial loader after its verified boot pack.
+    if (lowMemory && !engine) loadEngine();
+    return;
+  }
   if (name === 'QuotaExceededError') fail({ kind: 'quota', missingBytes: null });
   else if (/SecurityError|NotAllowedError/.test(name)) fail({ kind: 'storage' });
   else fail({ kind: 'download', files: storage });
@@ -160,7 +167,7 @@ async function begin() {
 async function loadEngine() {
   diagnostics.timings.loadEngine = performance.now();
   if (view.screen !== 'download' || booted) show('loading');
-  const size = diagnostics.canvas = sizeGameCanvas(canvas);
+  const size = diagnostics.canvas = sizeGameCanvas(canvas, settings.resolution);
   if (!gate) {
     gate = createPackGate(manifest!.files, want);
     if (booted) gate.release();

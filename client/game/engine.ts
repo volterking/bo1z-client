@@ -1,3 +1,5 @@
+import { graphicsArguments } from './graphics.ts';
+import { loadSettings } from './settings.ts';
 import type { ManifestFile, Stream } from '../download/protocol.ts';
 import type { Shared } from '../net/lan.ts';
 import type { Mixer } from './audio-worklet.ts';
@@ -70,7 +72,7 @@ async function chooseRenderer(param: string | null): Promise<Choice> {
 
 let choice: Promise<Choice> | null = null;
 // Chosen once, before the download, so that WebGPU skips the GLSL pack.
-export const rendererChoice = () => choice ??= chooseRenderer(storedRenderer() ?? new URLSearchParams(location.search).get('renderer'));
+export const rendererChoice = () => choice ??= chooseRenderer(storedRenderer() ?? new URLSearchParams(location.search).get('renderer') ?? loadSettings().renderer);
 
 // The engine's file opens wait for each of these files to be verified by the downloader (pack_gate.cpp):
 // the engine starts as soon as the manifest is known, during the download.
@@ -235,6 +237,10 @@ export function createEngine(options: EngineOptions) {
       diagnostics.console.splice(startupConsoleLines, excess);
       diagnostics.consoleDiscarded += excess;
     }
+    if (startupConsoleLines === null && diagnostics.console.length > 4096) {
+      diagnostics.consoleDiscarded += diagnostics.console.length - 4096;
+      diagnostics.console.splice(0, diagnostics.console.length - 4096);
+    }
     if (error) diagnostics.consoleErrors++;
     // Quitting from the game's menu ends in a local disconnect or "quitting...", not in an error.
     if (/Com_ERROR:\s*PLATFORM_DISCONNECTED_FROM_SERVER/.test(message) || /^quitting\.\.\.\s*$/.test(message)) quit();
@@ -382,6 +388,7 @@ export function createEngine(options: EngineOptions) {
       ...(renderer === 'webgpu' ? ['+set', 'r_webgpu', '1', '+set', 'r_webgpu_pipeline', String(pipeline)] : []),
       '+set', 'sensitivity', String(settings.sensitivity), '+set', 'snd_menu_master', String(settings.volume),
       '+set', 'r_customMode', `${canvas.width}x${canvas.height}`,
+      ...graphicsArguments(loadSettings().graphics),
       ...options.arguments,
       // monkeytoy 1, the game's default, closes the console, which the page's commands go through.
       '+set', 'monkeytoy', '0',
@@ -487,6 +494,7 @@ export function createEngine(options: EngineOptions) {
     async stop() {
       stopped = true;
       clearInterval(pump);
+      clearInterval(warmTimer);
       input.dispose();
       channel?.close();
       if (context) await context.close();
