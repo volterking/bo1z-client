@@ -128,7 +128,7 @@ function withString(module: KisakModule, text: string, use: (address: number) =>
 }
 
 type EngineOptions = {
-  canvas: HTMLCanvasElement; size: { width: number; height: number }; base: string; zone: string; opfsRoot: string; packBase: string; programsUrl: string;
+  canvas: HTMLCanvasElement; size: { width: number; height: number }; base: string; zone: string; opfsRoot: string; packBase: string; programsUrl: string | null;
   master: number; arguments: string[]; name: string; join: Promise<string | null>; streams: Stream[]; gate: PackGate; intro: Intro | null; introCovering: () => boolean;
   net: { shared: Shared; forward: (packet: Uint8Array<ArrayBuffer>) => void };
   onReady: () => void; onQuit: () => void; onCrash: (message: string, detail: CrashDetail) => void; onRelock: () => void;
@@ -347,14 +347,16 @@ export function createEngine(options: EngineOptions) {
     diagnostics.timings.wasmReady = performance.now();
     // Cinematics are played by <video> with range requests, never stored in OPFS.
     if (options.streams.length) engine.kbVideo.register(options.streams);
-    const programs = await fetch(options.programsUrl);
-    if (programs.ok) {
-      const bytes = new TextEncoder().encode(await programs.text()), address = engine._malloc(bytes.length);
-      if (!address) throw new Error('Cannot allocate program manifest');
-      new Uint8Array(engine.HEAPF32.buffer, address, bytes.length).set(bytes);
-      engine._KB_SetProgramManifest(address, bytes.length);
-      engine._free(address);
-    } else if (programs.status !== 404) throw new Error('Cannot load program manifest');
+    if (options.programsUrl) {
+      const programs = await fetch(options.programsUrl);
+      if (programs.ok) {
+        const bytes = new TextEncoder().encode(await programs.text()), address = engine._malloc(bytes.length);
+        if (!address) throw new Error('Cannot allocate program manifest');
+        new Uint8Array(engine.HEAPF32.buffer, address, bytes.length).set(bytes);
+        engine._KB_SetProgramManifest(address, bytes.length);
+        engine._free(address);
+      } else if (programs.status !== 404) throw new Error('Cannot load program manifest');
+    }
     pointer = engine._malloc(4096 * 8);
     if (!pointer) throw new Error('Cannot allocate audio transfer buffer');
     engine.refreshAudioViews();

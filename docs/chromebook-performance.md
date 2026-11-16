@@ -65,3 +65,13 @@ A real Nacht download completed, then startup exposed a native guard rejecting d
 The unit test checks the actual shipped binary, compares the renderer function's instruction stream before/after (apart from the existing import-index relocation), and checks rejection when the expected original guard is changed. The engine's fixed heap size is unchanged.
 
 The 800×450 smoke test confirmed `KISAK_BROWSER map-loaded zombie_cod5_prototype` and `view.screen === ready`, with no failure reported. It did not measure N5100 frame rates, play a round, or validate Kino gameplay.
+
+## Reporting a load that does not finish
+
+The engine ETA was based on a 27-second default, so "almost done" could appear well before real map completion. Engine loading now shows elapsed time instead. The progress percentage remains an estimate; it is not proof that the engine is about to finish.
+
+During loading, expand **Loading details** and select **Copy loading report**. The report includes engine milestones, recent console messages, loaded zones, renderer, internal resolution and settings. It reads only records already held by the page and does not call into a potentially blocked Wasm thread. Clipboard failure leaves the text visible and selected. The report is generated locally; this button does not upload it anywhere.
+
+Nacht does not publish an optional `nacht-programs.json` seed. The previous HTTP 404 was tolerated by the loader and did not prevent the successful Nacht smoke test. The client now only requests the seed for Five, which publishes one. A missing seed should not be diagnosed as the cause of a Chromebook stall without other evidence.
+
+The on-device report is still needed to distinguish long asset/shader processing, renderer failure and memory pressure. The new reporting interface is not a claimed fix for an unidentified engine hang.

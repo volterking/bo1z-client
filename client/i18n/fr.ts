@@ -85,6 +85,9 @@ export default {
     moon: { name: 'Moon', place: 'Griffin Station, la Lune', desc: 'De la Zone 51 à une base lunaire : gravité réduite, et pas d’air dehors.' },
   },
   load: {
+    elapsed: '{n} s écoulées',
+    details: 'Détails du chargement',
+    copyReport: 'Copier le rapport de chargement',
     cancel: 'Annuler',
     solo: 'Partie solo',
     tip: 'Astuce',

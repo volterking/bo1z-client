@@ -83,6 +83,9 @@ export default {
     moon: { name: 'Moon', place: 'Griffin Station, the Moon', desc: 'From Area 51 to a lunar base: low gravity and no air outside.' },
   },
   load: {
+    elapsed: '{n} s elapsed',
+    details: 'Loading details',
+    copyReport: 'Copy loading report',
     cancel: 'Cancel',
     solo: 'Solo game',
     tip: 'Tip',
