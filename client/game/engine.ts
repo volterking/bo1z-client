@@ -382,6 +382,11 @@ export function createEngine(options: EngineOptions) {
       '+set', 'r_clear', '0',
       // The canvas thread paces frames with requestAnimationFrame; an integer cap would hold a 120 Hz display at 60.
       '+set', 'r_vsync', '0', '+set', 'com_maxfps', String(safeFpsCap),
+      // Silence perk-machine jingles and purchase stingers by sound-alias name,
+      // without turning down weapon, zombie, UI or other gameplay sounds.
+      // Black Ops 1 provides snd_mute_alias_substring for selective alias muting.
+      // ?perkMusic=1 restores the original jingles for comparison.
+      ...(new URLSearchParams(location.search).get('perkMusic') === '1' ? [] : ['+set', 'snd_mute_alias_substring', 'mus_perks_']),
       '+set', 'snd_softwaremixer', '1', '+set', 'snd_softwarewav', '0', '+set', 'snd_softwaretable', `${options.opfsRoot}/web/sound`,
       ...(rendererRoute === 'main-pthread' ? ['+set', 'r_smp_backend', '0'] : []),
       ...(renderer === 'webgpu' ? ['+set', 'r_webgpu', '1', '+set', 'r_webgpu_pipeline', String(pipeline)] : []),
