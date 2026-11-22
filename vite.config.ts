@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import { patchEngine } from './patch/engine.ts';
+import { patchXboxMemoryLimit } from './patch/xbox-memory.ts';
 
 const client = (file: string) => path.resolve(import.meta.dirname, 'client', file);
 const engine = (file: string) => readFile(path.resolve(import.meta.dirname, 'engine', file));
@@ -12,15 +13,15 @@ const engine = (file: string) => readFile(path.resolve(import.meta.dirname, 'eng
 const artifacts: Plugin = {
   name: 'bo1z-engine',
   async generateBundle() {
-    // Experimental Xbox Edge build: shrink only the JavaScript-side memory declaration
-    // from ~2 GiB to 512 MiB. The precompiled .wasm may require its original fixed
-    // imported memory limits; this experiment may fail at instantiation.
+    // The Xbox browser gets a smaller shared Wasm memory reservation.
+    // Desktop browsers retain the original ~2 GiB memory allocation.
     const glue = (await engine('KisakBlack-web.mjs')).toString('utf8');
-    const originalMemory = 'var INITIAL_MEMORY=2147418112;';
-    if (glue.split(originalMemory).length !== 2) throw new Error('Expected one fixed Wasm memory setting in glue');
-    const experimentalGlue = glue.replace(originalMemory, 'var INITIAL_MEMORY=536870912;');
-    this.emitFile({ type: 'asset', fileName: 'artifacts/KisakBlack-web.mjs', source: experimentalGlue });
-    this.emitFile({ type: 'asset', fileName: 'artifacts/KisakBlack-web.wasm', source: patchEngine(await engine('KisakBlack-web.wasm')) });
+    const needle = 'var INITIAL_MEMORY=2147418112;';
+    if (glue.split(needle).length !== 2) throw new Error('Expected exactly one Wasm memory initialization');
+    const xboxMemory = 'var INITIAL_MEMORY=/Xbox/i.test(navigator.userAgent)?536870912:2147418112;';
+    this.emitFile({ type: 'asset', fileName: 'artifacts/KisakBlack-web.mjs', source: glue.replace(needle, xboxMemory) });
+    const wasm = patchEngine(await engine('KisakBlack-web.wasm'));
+    this.emitFile({ type: 'asset', fileName: 'artifacts/KisakBlack-web.wasm', source: patchXboxMemoryLimit(wasm) });
   },
 };
 
