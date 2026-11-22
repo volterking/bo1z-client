@@ -300,6 +300,7 @@ export async function startSession(game: HTMLCanvasElement) {
     const unsupported = await checkCapabilities();
     if (unsupported) {
       diagnostics.errors.push(unsupported.reason);
+      view.report = `Unsupported browser feature: ${unsupported.reason}\nDevice: ${navigator.userAgent}\nPage: ${location.pathname}${location.search}`;
       return fail({ kind: unsupported.kind });
     }
   } catch (error) {
