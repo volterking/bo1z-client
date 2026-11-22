@@ -12,7 +12,14 @@ const engine = (file: string) => readFile(path.resolve(import.meta.dirname, 'eng
 const artifacts: Plugin = {
   name: 'bo1z-engine',
   async generateBundle() {
-    this.emitFile({ type: 'asset', fileName: 'artifacts/KisakBlack-web.mjs', source: await engine('KisakBlack-web.mjs') });
+    // Experimental Xbox Edge build: shrink only the JavaScript-side memory declaration
+    // from ~2 GiB to 512 MiB. The precompiled .wasm may require its original fixed
+    // imported memory limits; this experiment may fail at instantiation.
+    const glue = (await engine('KisakBlack-web.mjs')).toString('utf8');
+    const originalMemory = 'var INITIAL_MEMORY=2147418112;';
+    if (glue.split(originalMemory).length !== 2) throw new Error('Expected one fixed Wasm memory setting in glue');
+    const experimentalGlue = glue.replace(originalMemory, 'var INITIAL_MEMORY=536870912;');
+    this.emitFile({ type: 'asset', fileName: 'artifacts/KisakBlack-web.mjs', source: experimentalGlue });
     this.emitFile({ type: 'asset', fileName: 'artifacts/KisakBlack-web.wasm', source: patchEngine(await engine('KisakBlack-web.wasm')) });
   },
 };
