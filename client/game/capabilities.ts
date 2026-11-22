@@ -1,3 +1,5 @@
+import { controllerMode, isXbox } from './controller.ts';
+
 // The game canvas is never touched here: Emscripten transfers it untouched to its thread.
 export type Unsupported = { kind: 'mobile' | 'secure' | 'browser' | 'gpu'; reason: string };
 
@@ -28,7 +30,7 @@ function wasmSupport() {
 }
 
 export async function checkCapabilities(): Promise<Unsupported | null> {
-  if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+  if (!isXbox && (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))) {
     return { kind: 'mobile', reason: navigator.userAgent };
   }
   if (!isSecureContext) return { kind: 'secure', reason: 'insecure context' };
@@ -37,7 +39,7 @@ export async function checkCapabilities(): Promise<Unsupported | null> {
     [typeof navigator.storage?.getDirectory === 'function' && 'locks' in navigator, 'OPFS and Web Locks'],
     [typeof AudioContext === 'function' && 'audioWorklet' in AudioContext.prototype, 'AudioWorklet'],
     ['transferControlToOffscreen' in HTMLCanvasElement.prototype, 'OffscreenCanvas'],
-    ['requestPointerLock' in Element.prototype, 'pointer lock'],
+    [controllerMode || 'requestPointerLock' in Element.prototype, 'pointer lock'],
     [(WebAssembly as { Tag?: unknown }).Tag, 'WebAssembly exceptions'],
     [wasmSupport(), 'WebAssembly threads and SIMD'],
     // Edge's "Enhance your security on the web" runs the site without JIT: wasm stays, JSPI goes.

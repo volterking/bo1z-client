@@ -2,6 +2,7 @@ import { shallowReactive, watch } from 'vue';
 import type { Groups, Manifest, Reply } from '../download/protocol.ts';
 import * as net from '../net/link.ts';
 import { checkCapabilities, type Unsupported } from './capabilities.ts';
+import { controllerMode } from './controller.ts';
 import { sizeGameCanvas } from './canvas.ts';
 import { diagnostics } from './diagnostics.ts';
 import { type CrashDetail, createEngine, createPackGate, type Engine, glslPack, type PackGate, rendererChoice, rendererRoute } from './engine.ts';
@@ -201,10 +202,12 @@ export function enter() {
   if (view.screen !== 'ready' || entering || !engine || net.link.failure) return;
   entering = true;
   view.declined = false;
-  const full = settings.fullscreen && !document.fullscreenElement ? document.documentElement.requestFullscreen().then(lockEscape, () => {}) : Promise.resolve();
+  // Xbox Edge: ask for fullscreen on the player's start-button gesture, not via a timer.
+  const full = (settings.fullscreen || controllerMode) && !document.fullscreenElement && document.documentElement.requestFullscreen
+    ? document.documentElement.requestFullscreen().then(lockEscape, () => {}) : Promise.resolve();
   const game = engine;
   Promise.all([full, game.play()]).then(() => {
-    if (document.pointerLockElement !== canvas) throw new Error('The mouse was not captured.');
+    if (!controllerMode && document.pointerLockElement !== canvas) throw new Error('The mouse was not captured.');
     show('playing');
     diagnostics.timings.playing = performance.now();
     if (currentIntro()?.started) finishIntro('skip');
@@ -259,9 +262,9 @@ function crash(message: string, detail: CrashDetail) {
 function followGame() {
   checkIntroClosed();
   if (view.screen === 'playing' && engine) {
-    const menu = engine.uiState(), locked = document.pointerLockElement === canvas;
+    const menu = engine.uiState(), locked = controllerMode || document.pointerLockElement === canvas;
     // A game menu draws its own cursor: the mouse is freed for absolute coordinates, without the system arrow.
-    if (menu & 1 && locked) engine.unlock();
+    if (menu & 1 && locked && !controllerMode) engine.unlock();
     canvas.classList.toggle('menu-cursor', Boolean(menu & 2));
     view.resume = !locked && !(menu & 1);
   }
@@ -297,6 +300,7 @@ export async function startSession(game: HTMLCanvasElement) {
     const unsupported = await checkCapabilities();
     if (unsupported) {
       diagnostics.errors.push(unsupported.reason);
+      view.report = `Unsupported browser feature: ${unsupported.reason}\nDevice: ${navigator.userAgent}\nPage: ${location.pathname}${location.search}`;
       return fail({ kind: unsupported.kind });
     }
   } catch (error) {

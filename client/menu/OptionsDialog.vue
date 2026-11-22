@@ -12,12 +12,14 @@ const dialog = ref<HTMLDialogElement>();
 const sensitivity = ref(saved.sensitivity);
 const volume = ref(saved.volume);
 const fullscreen = ref(saved.fullscreen);
+const blood = ref(saved.blood);
 const count = ref(saved.horde.n);
 const round = ref(saved.horde.round);
 
 function setSensitivity(value: string) { sensitivity.value = Number(value); save({ sensitivity: sensitivity.value }); }
 function setVolume(value: string) { volume.value = Number(value); save({ volume: volume.value, volumeChosen: true }); }
 function toggleFullscreen() { fullscreen.value = !fullscreen.value; save({ fullscreen: fullscreen.value }); }
+function toggleBlood() { blood.value = !blood.value; save({ blood: blood.value }); }
 function setHorde(input: HTMLInputElement, n: string, r: string) {
   count.value = hordeCount(n);
   round.value = hordeRound(r);
@@ -41,6 +43,7 @@ defineExpose({ open: () => { dialog.value!.showModal(); dialog.value!.focus(); }
         <label class="opt">{{ $t('options.volume') }}<input type="range" id="o-vol" min="0" max="1" step="0.05" :value="volume" @input="setVolume(($event.target as HTMLInputElement).value)"><output id="o-vol-v">{{ n(volume, { style: 'percent' }) }}</output></label>
         <div class="opt-group">{{ $t('options.display') }}</div>
         <div class="opt">{{ $t('options.fullscreen') }}<button class="switch" id="o-full" type="button" role="switch" :aria-checked="flag(fullscreen)" @click="toggleFullscreen"><i></i></button></div>
+        <div class="opt">{{ $t('options.blood') }}<button class="switch" id="o-blood" type="button" role="switch" :aria-checked="flag(blood)" @click="toggleBlood"><i></i></button></div>
         <div class="opt-group">{{ $t('hellMode') }}</div>
         <label class="opt">{{ $t('options.zombies') }}<input type="number" id="o-n" min="24" max="300" :value="count" @change="setHorde($event.target as HTMLInputElement, ($event.target as HTMLInputElement).value, String(round))"></label>
         <label class="opt">{{ $t('options.round') }}<input type="number" id="o-round" min="1" max="255" :value="round" @change="setHorde($event.target as HTMLInputElement, String(count), ($event.target as HTMLInputElement).value)"></label>

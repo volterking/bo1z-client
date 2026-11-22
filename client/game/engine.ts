@@ -4,6 +4,7 @@ import type { Mixer } from './audio-worklet.ts';
 import workletUrl from './audio-worklet.ts?worker&url';
 import { diagnostics } from './diagnostics.ts';
 import { captureInput } from './input.ts';
+import { controllerMode } from './controller.ts';
 import type { Intro } from './intro.ts';
 import { installMod, MOD } from './mod.ts';
 
@@ -282,7 +283,7 @@ export function createEngine(options: EngineOptions) {
     }
     diagnostics.inputEvents++;
     if (!accepted) diagnostics.inputDropped++;
-  }, { menuOpen: () => Boolean(module && module._KB_UIState() & 1), size: () => options.size, relock: options.onRelock });
+  }, { menuOpen: () => Boolean(module && module._KB_UIState() & 1), size: () => options.size, relock: options.onRelock, controllerMode });
 
   function prepareAudio() {
     const audio = context = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
@@ -317,7 +318,7 @@ export function createEngine(options: EngineOptions) {
     };
   }
 
-  async function start(settings: { sensitivity: number; volume: number }) {
+  async function start(settings: { sensitivity: number; volume: number; blood: boolean }) {
     answerPageQueries();
     const { default: createKisakBrowser } = await import(/* @vite-ignore */ `${options.base}artifacts/KisakBlack-web.mjs`) as { default: (args: object) => Promise<KisakModule> };
     if (stopped) return;
@@ -376,6 +377,7 @@ export function createEngine(options: EngineOptions) {
     const args = [
       '+set', 'fs_b', options.opfsRoot, '+set', 'fs_h', '/opfs/user', '+set', 'fs_game', MOD,
       '+set', 'kisak_zombies', '1', '+set', 'zombiemode', '1',
+      '+set', 'cg_blood', settings.blood ? '1' : '0',
       '+set', 'kisak_testclient', '0', '+set', 'kisak_scripterrors', '100',
       '+set', 'r_fullscreen', '0', '+set', 'r_aaSamples', '1',
       // r_clear defaults to 2: a blue and orange blink every 512 ms, a development aid.
@@ -449,7 +451,7 @@ export function createEngine(options: EngineOptions) {
     get stopped() {
       return stopped;
     },
-    load(settings: { sensitivity: number; volume: number }) {
+    load(settings: { sensitivity: number; volume: number; blood: boolean }) {
       return starting ??= Promise.all([prepareAudio(), start(settings)]);
     },
     async play() {
@@ -468,7 +470,8 @@ export function createEngine(options: EngineOptions) {
       node!.port.postMessage({ type: 'resume', since: Date.now() });
       diagnostics.interactive = true;
       input.enable(true);
-      const lock = input.lock(), resume = audio.resume();
+      if (controllerMode) module?._KB_Input(INPUT.pointerLock, 1, 0);
+      const lock = controllerMode ? Promise.resolve() : input.lock(), resume = audio.resume();
       try {
         await Promise.all([lock, resume]);
         introWanted = true;
