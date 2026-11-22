@@ -1,3 +1,5 @@
+import { controllerMode } from './controller.ts';
+
 // The game canvas is never touched here: Emscripten transfers it untouched to its thread.
 export type Unsupported = { kind: 'mobile' | 'secure' | 'browser' | 'gpu'; reason: string };
 
@@ -37,7 +39,7 @@ export async function checkCapabilities(): Promise<Unsupported | null> {
     [typeof navigator.storage?.getDirectory === 'function' && 'locks' in navigator, 'OPFS and Web Locks'],
     [typeof AudioContext === 'function' && 'audioWorklet' in AudioContext.prototype, 'AudioWorklet'],
     ['transferControlToOffscreen' in HTMLCanvasElement.prototype, 'OffscreenCanvas'],
-    ['requestPointerLock' in Element.prototype, 'pointer lock'],
+    [controllerMode || 'requestPointerLock' in Element.prototype, 'pointer lock'],
     [(WebAssembly as { Tag?: unknown }).Tag, 'WebAssembly exceptions'],
     [wasmSupport(), 'WebAssembly threads and SIMD'],
     // Edge's "Enhance your security on the web" runs the site without JIT: wasm stays, JSPI goes.
