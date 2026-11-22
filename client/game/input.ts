@@ -29,7 +29,7 @@ export type InputEvent =
   | { kind: 'cursor'; x: number; y: number }
   | { kind: 'pointer-lock'; locked: boolean };
 
-type Hooks = { menuOpen: () => boolean; size: () => { width: number; height: number }; relock: () => void };
+type Hooks = { menuOpen: () => boolean; size: () => { width: number; height: number }; relock: () => void; controllerMode?: boolean };
 
 // Locked: relative motion for gameplay. Free under a game menu: canvas coordinates, which the engine scales to 640x480.
 // Free in gameplay: the next canvas click locks it again.
@@ -40,6 +40,62 @@ export function captureInput(canvas: HTMLCanvasElement, send: (event: InputEvent
     target.addEventListener(name, callback as EventListener, options);
     listeners.push(() => target.removeEventListener(name, callback as EventListener, options));
   }
+  // Gamepads use a virtual mouse lock: Xbox Edge does not consistently provide pointer lock.
+  const padHeld = new Map<string, number>();
+  let padFrame = 0, padX = 320, padY = 240, lastPadAt = performance.now();
+  const pressPad = (name: string, code: number, down: boolean) => {
+    if (down === padHeld.has(name)) return;
+    if (down) padHeld.set(name, code);
+    else padHeld.delete(name);
+    send({ kind: 'key', key: code, down });
+  };
+  const releasePad = () => {
+    for (const key of padHeld.values()) send({ kind: 'key', key, down: false });
+    padHeld.clear();
+  };
+  const dead = (x: number) => Math.abs(x) < .23 ? 0 : Math.sign(x) * (Math.abs(x) - .23) / .77;
+  function pollPad(now: number) {
+    padFrame = requestAnimationFrame(pollPad);
+    const dt = Math.min(50, Math.max(0, now - lastPadAt)) / 16.667;
+    lastPadAt = now;
+    if (!enabled || !hooks.controllerMode || typeof navigator.getGamepads !== 'function') {
+      if (padHeld.size) releasePad();
+      return;
+    }
+    const pad = [...navigator.getGamepads()].find(p => p?.connected && p.mapping === 'standard');
+    if (!pad) { releasePad(); return; }
+    const menu = hooks.menuOpen();
+    const ax = (i: number) => dead(pad.axes[i] ?? 0);
+    const down = (i: number) => Boolean(pad.buttons[i]?.pressed);
+    pressPad('moveUp', 119, !menu && ax(1) < -.35); // W
+    pressPad('moveDown', 115, !menu && ax(1) > .35); // S
+    pressPad('moveLeft', 97, !menu && ax(0) < -.35); // A
+    pressPad('moveRight', 100, !menu && ax(0) > .35); // D
+    pressPad('jump', menu ? 13 : 32, down(0)); // A = jump / select
+    pressPad('crouch', menu ? 27 : 159, down(1)); // B = crouch / back
+    pressPad('reload', 114, !menu && down(2)); // X
+    pressPad('switch', 205, !menu && down(3)); // Y = next weapon
+    pressPad('tactical', 113, !menu && down(4)); // LB = Q
+    pressPad('grenade', 103, !menu && down(5)); // RB = G
+    pressPad('aim', 202, !menu && (pad.buttons[6]?.value ?? 0) > .3); // LT = right mouse
+    pressPad('shoot', 200, !menu && (pad.buttons[7]?.value ?? 0) > .3); // RT = left mouse
+    pressPad('start', 27, down(9)); // Menu = Escape
+    pressPad('score', 9, !menu && down(8)); // View = Tab
+    pressPad('up', 154, menu && down(12)); // D-pad
+    pressPad('down', 155, menu && down(13));
+    pressPad('left', 156, menu && down(14));
+    pressPad('right', 157, menu && down(15));
+    if (menu) {
+      const size = hooks.size();
+      padX = Math.min(size.width, Math.max(0, padX + ax(2) * 11 * dt));
+      padY = Math.min(size.height, Math.max(0, padY + ax(3) * 11 * dt));
+      send({ kind: 'cursor', x: Math.round(padX), y: Math.round(padY) });
+    } else {
+      const dx = ax(2) * 13 * dt, dy = ax(3) * 13 * dt;
+      if (Math.abs(dx) + Math.abs(dy) > 0.05) send({ kind: 'mouse', dx, dy });
+    }
+  }
+  if (hooks.controllerMode) padFrame = requestAnimationFrame(pollPad);
   const locked = () => document.pointerLockElement === canvas;
   const active = () => enabled && (locked() || hooks.menuOpen());
   const spurious = (event: MouseEvent) => performance.now() - lockChangeAt < LOCK_WARMUP_MS
@@ -152,12 +208,15 @@ export function captureInput(canvas: HTMLCanvasElement, send: (event: InputEvent
   });
   return {
     dispose() {
+      cancelAnimationFrame(padFrame);
+      releasePad();
       release();
       listeners.forEach(remove => remove());
     },
     enable(value: boolean) {
       enabled = value;
-      if (!value) release();
+      if (!value) { release(); releasePad(); }
+      if (hooks.controllerMode) send({ kind: 'pointer-lock', locked: value });
     },
     // Frees the cursor for a game menu without sending the game an Escape.
     unlock() {
