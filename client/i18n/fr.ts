@@ -95,6 +95,8 @@ export default {
     parts: { shaders: 'Shaders', sounds: 'Sons', textures: 'Textures', music: 'Musique et voix', map: 'Carte et modèles', engine: 'Moteur' },
     links: { relay: 'connecté via le relais (un peu plus de latence)', ok: 'liaison directe', wait: 'liaison en cours' },
     enter: 'Clique ou appuie sur une touche pour entrer',
+    controllerEnter: 'Utilise la manette ou active Démarrer',
+    controllerStart: 'DÉMARRER AVEC LA MANETTE',
     mouseRefused: 'La souris n’a pas pu être capturée.',
     clickAgain: 'Clique encore une fois sur l’écran.',
     theHost: 'l’hôte',
