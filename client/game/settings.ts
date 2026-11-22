@@ -1,7 +1,7 @@
 import { type Horde, hordeCount, hordeDefaults, hordeRound } from './horde.ts';
 
 // volumeChosen: a saved volume only counts if the player moved the slider; otherwise the game starts at 50 %.
-export type Settings = { sensitivity: number; volume: number; volumeChosen: boolean; fullscreen: boolean; horde: Horde };
+export type Settings = { sensitivity: number; volume: number; volumeChosen: boolean; fullscreen: boolean; blood: boolean; horde: Horde };
 
 const KEY = 'bo1z-settings';
 
@@ -16,6 +16,7 @@ export function loadSettings(): Settings {
     volume: volumeChosen ? saved.volume! : 0.5,
     volumeChosen,
     fullscreen: saved.fullscreen === true,
+    blood: saved.blood !== false,
     horde: { n: hordeCount(saved.horde?.n ?? hordeDefaults.n), round: hordeRound(saved.horde?.round ?? hordeDefaults.round) },
   };
 }
