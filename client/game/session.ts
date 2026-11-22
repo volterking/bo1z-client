@@ -2,7 +2,7 @@ import { shallowReactive, watch } from 'vue';
 import type { Groups, Manifest, Reply } from '../download/protocol.ts';
 import * as net from '../net/link.ts';
 import { checkCapabilities, type Unsupported } from './capabilities.ts';
-import { controllerMode, isXbox } from './controller.ts';
+import { controllerMode } from './controller.ts';
 import { sizeGameCanvas } from './canvas.ts';
 import { diagnostics } from './diagnostics.ts';
 import { type CrashDetail, createEngine, createPackGate, type Engine, glslPack, type PackGate, rendererChoice, rendererRoute } from './engine.ts';
