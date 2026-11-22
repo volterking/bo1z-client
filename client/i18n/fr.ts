@@ -56,6 +56,7 @@ export default {
     volume: 'Volume général',
     display: 'Affichage',
     fullscreen: 'Plein écran au lancement',
+    blood: 'Effets de sang',
     zombies: 'Zombies en même temps',
     round: 'Manche de départ',
     back: 'Retour',
