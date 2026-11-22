@@ -44,10 +44,15 @@ export function captureInput(canvas: HTMLCanvasElement, send: (event: InputEvent
   const padHeld = new Map<string, number>();
   let padFrame = 0, padX = 320, padY = 240, lastPadAt = performance.now();
   const pressPad = (name: string, code: number, down: boolean) => {
-    if (down === padHeld.has(name)) return;
-    if (down) padHeld.set(name, code);
-    else padHeld.delete(name);
-    send({ kind: 'key', key: code, down });
+    const previous = padHeld.get(name);
+    if (previous !== undefined && (previous !== code || !down)) {
+      padHeld.delete(name);
+      send({ kind: 'key', key: previous, down: false });
+    }
+    if (down && previous !== code) {
+      padHeld.set(name, code);
+      send({ kind: 'key', key: code, down: true });
+    }
   };
   const releasePad = () => {
     for (const key of padHeld.values()) send({ kind: 'key', key, down: false });
