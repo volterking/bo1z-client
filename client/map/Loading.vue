@@ -49,7 +49,7 @@ function failureProblem(failure: Failure): Problem {
     case 'storage':
       return { ...texts('storage'), primary: reload() };
     case 'browser': case 'mobile': case 'gpu':
-      return texts('browser');
+      return { ...texts('browser'), hint: view.report || t('errors.browser.hint'), report: Boolean(view.report) };
     case 'secure':
       return texts('secure');
     case 'engine':
