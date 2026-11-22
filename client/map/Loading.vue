@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { controllerMode } from '../game/controller.ts';
 import { computed, onUnmounted, ref, shallowReactive, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { BASE, hiddenRoom, horde, map, room } from '../game/pack.ts';
@@ -111,7 +112,8 @@ onUnmounted(() => clearInterval(tips));
           <div class="kb-track"><i :style="{ width: `${part.pct}%` }"></i></div><span>{{ $t(`load.parts.${part.key}`) }}<em>{{ part.pct > 0 && part.pct < 100 ? $n(part.pct / 100, { style: 'percent' }) : '' }}</em></span>
         </div>
       </div>
-      <p :class="['kb-prompt', { 'kb-off': view.screen !== 'ready' }]">{{ $t('load.enter') }}</p>
+      <p :class="['kb-prompt', { 'kb-off': view.screen !== 'ready' }]">{{ controllerMode ? $t('load.controllerEnter') : $t('load.enter') }}</p>
+      <button v-if="controllerMode && view.screen === 'ready'" class="kb-primary" type="button" @click.stop="enter">{{ $t('load.controllerStart') }}</button>
       <p class="kb-note" :hidden="!(view.screen === 'ready' && view.declined)"><b>{{ $t('load.mouseRefused') }}</b> {{ $t('load.clickAgain') }}</p>
       <div class="kb-error" :hidden="!problem">
         <h3><span class="kb-warn">!</span><span class="kb-error-title">{{ problem?.title }}</span></h3><p class="kb-error-text">{{ problem?.text }}</p><p class="kb-error-hint">{{ problem?.hint ?? '' }}</p>
