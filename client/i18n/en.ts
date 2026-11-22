@@ -54,6 +54,7 @@ export default {
     volume: 'Master volume',
     display: 'Display',
     fullscreen: 'Full screen on launch',
+    blood: 'Blood effects',
     zombies: 'Zombies at once',
     round: 'Starting round',
     back: 'Back',
