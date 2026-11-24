@@ -393,7 +393,12 @@ export function createEngine(options: EngineOptions) {
       ...(rendererRoute === 'main-pthread' ? ['+set', 'r_smp_backend', '0'] : []),
       ...(renderer === 'webgpu' ? ['+set', 'r_webgpu', '1', '+set', 'r_webgpu_pipeline', String(pipeline)] : []),
       '+set', 'sensitivity', String(settings.sensitivity), '+set', 'snd_menu_master', String(settings.volume),
-      '+set', 'r_customMode', `${canvas.width}x${canvas.height}`,
+      // The native renderer refuses display modes below 800x600. In the
+      // experimental Android 200p/300p mode we keep its logical resolution
+      // valid, while the WebGL drawing buffer itself is smaller.
+      '+set', 'r_customMode', /Android/i.test(navigator.userAgent) &&
+        ['200', '300'].includes(new URLSearchParams(location.search).get('mobileRes') ?? '')
+        ? '800x600' : `${canvas.width}x${canvas.height}`,
       ...options.arguments,
       // monkeytoy 1, the game's default, closes the console, which the page's commands go through.
       '+set', 'monkeytoy', '0',
