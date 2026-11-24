@@ -120,6 +120,14 @@ function downloadError(message: string, name: string, storage: boolean) {
   idle = null;
   downloader?.terminate();
   diagnostics.errors.push(message);
+  // Preserve the actual fetch/OPFS/HTTP error for Android troubleshooting;
+  // previously every failure appeared as the same generic network interruption.
+  view.report = [
+    `Download failed: ${name || 'UnknownError'}: ${message}`,
+    `Browser: ${navigator.userAgent}`,
+    `Page: ${location.pathname}${location.search}`,
+    `Progress: ${view.pct}%`,
+  ].join('\\n');
   // The whole pack downloads before startup: an error afterwards deprives the game of nothing.
   if (booted) return;
   if (name === 'QuotaExceededError') fail({ kind: 'quota', missingBytes: null });
