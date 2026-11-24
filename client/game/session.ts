@@ -127,7 +127,7 @@ function downloadError(message: string, name: string, storage: boolean) {
     `Browser: ${navigator.userAgent}`,
     `Page: ${location.pathname}${location.search}`,
     `Progress: ${view.pct}%`,
-  ].join('\\n');
+  ].join('\n');
   // The whole pack downloads before startup: an error afterwards deprives the game of nothing.
   if (booted) return;
   if (name === 'QuotaExceededError') fail({ kind: 'quota', missingBytes: null });
