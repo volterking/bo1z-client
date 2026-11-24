@@ -28,10 +28,15 @@ export function sizeGameCanvas(canvas: HTMLCanvasElement) {
     scale = Math.max(density, 800 / width, 600 / height);
   }
 
-  canvas.width = Math.max(1, Math.round(width * scale));
-  canvas.height = Math.max(1, Math.round(height * scale));
+  // The native renderer rejects all modes below 800x600 during R_Init.
+  // Mobile Chrome has a much smaller CSS viewport; don't send its 280x210
+  // Lite-5 backbuffer as r_customMode. Display 800x600 scaled down instead.
+  // Other platforms keep their existing ultra-lite resolution behavior.
+  const android = /Android/i.test(navigator.userAgent);
+  canvas.width = android ? Math.max(800, Math.round(width * scale)) : Math.max(1, Math.round(width * scale));
+  canvas.height = android ? Math.max(600, Math.round(height * scale)) : Math.max(1, Math.round(height * scale));
   const size = { width: canvas.width, height: canvas.height };
-  console.info(`BO1Z rendering: ${size.width}x${size.height} (${lite ? `Chromebook Lite ${liteLevel}` : 'default'})`);
+  console.info(`BO1Z rendering: ${size.width}x${size.height} (${android ? 'Android renderer minimum' : lite ? `Chromebook Lite ${liteLevel}` : 'default'})`);
 
   function fit() {
     const fitScale = Math.min(innerWidth / size.width, innerHeight / size.height);
