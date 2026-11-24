@@ -49,7 +49,7 @@ function failureProblem(failure: Failure): Problem {
     case 'storage':
       return { ...texts('storage'), primary: reload() };
     case 'browser': case 'mobile': case 'gpu':
-      return { ...texts('browser'), hint: view.report || t('errors.browser.hint'), report: Boolean(view.report) };
+      return { ...texts('browser'), text: view.report ? `Technical reason: ${view.report.split('\n')[0]}` : t('errors.browser.text'), hint: view.report ? 'Open Details below for diagnostics. The device is not blocked just for being Android.' : t('errors.browser.hint'), report: Boolean(view.report) };
     case 'secure':
       return texts('secure');
     case 'engine':
