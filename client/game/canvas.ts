@@ -33,10 +33,17 @@ export function sizeGameCanvas(canvas: HTMLCanvasElement) {
   // Lite-5 backbuffer as r_customMode. Display 800x600 scaled down instead.
   // Other platforms keep their existing ultra-lite resolution behavior.
   const android = /Android/i.test(navigator.userAgent);
-  canvas.width = android ? Math.max(800, Math.round(width * scale)) : Math.max(1, Math.round(width * scale));
-  canvas.height = android ? Math.max(600, Math.round(height * scale)) : Math.max(1, Math.round(height * scale));
+  // Experimental Android low-backbuffer mode. The native game must still see
+  // an 800x600 logical video mode (see engine.ts); the actual WebGL drawing
+  // buffer can be 356x200 or 533x300. The GL default-FBO viewport needs to
+  // be scaled by patch/mobile-dxt-fallback.js. Untested: opt-in only.
+  const mobileRes = android && ['200', '300'].includes(params.get('mobileRes') ?? '')
+    ? Number(params.get('mobileRes')) : null;
+  canvas.width = mobileRes ? Math.round(mobileRes * 16 / 9)
+    : android ? Math.max(800, Math.round(width * scale)) : Math.max(1, Math.round(width * scale));
+  canvas.height = mobileRes ?? (android ? Math.max(600, Math.round(height * scale)) : Math.max(1, Math.round(height * scale)));
   const size = { width: canvas.width, height: canvas.height };
-  console.info(`BO1Z rendering: ${size.width}x${size.height} (${android ? 'Android renderer minimum' : lite ? `Chromebook Lite ${liteLevel}` : 'default'})`);
+  console.info(`BO1Z rendering: ${size.width}x${size.height} (${mobileRes ? `Android experimental ${mobileRes}p` : android ? 'Android renderer minimum' : lite ? `Chromebook Lite ${liteLevel}` : 'default'})`);
 
   function fit() {
     const fitScale = Math.min(innerWidth / size.width, innerHeight / size.height);
