@@ -308,7 +308,12 @@ async function fetchFile(entry: ManifestFile, base: FileSystemDirectoryHandle): 
   let access: FileSystemSyncAccessHandle | null = await handle.createSyncAccessHandle();
   let offset = same && access.getSize() <= entry.size ? access.getSize() : 0;
   // Brotli parts resume at a part boundary; the prefix on disk is hashed again below.
-  const parts = Boolean(transportChunk) && Array.isArray(entry.br) && entry.br.length === Math.ceil(entry.size / transportChunk);
+  let parts = Boolean(transportChunk) && Array.isArray(entry.br) && entry.br.length === Math.ceil(entry.size / transportChunk);
+  // The origin sometimes returns a shorter decoded Brotli slice than the
+  // manifest's transport.chunk promises. On Android, fall back to streaming the
+  // entire file, preserving the final SHA-256 validation.
+  const android = /Android/i.test(navigator.userAgent);
+  let triedWholeFile = false;
   if (parts && offset % transportChunk) {
     offset -= offset % transportChunk;
     access.truncate(offset);
@@ -391,7 +396,7 @@ async function fetchFile(entry: ManifestFile, base: FileSystemDirectoryHandle): 
             const response = await packFetch(entry, '', offset / transportChunk);
             if (!response.ok) throw new Error(`${entry.path}: HTTP ${response.status}`);
             await pump(response, end);
-            if (offset !== end) throw new Error('Truncated part');
+            if (offset !== end) throw new Error(`Truncated part: ${entry.path}, expected ${end} bytes total, received ${offset} (part ${Math.floor((end - 1) / transportChunk)})`);
           }
         } else if (offset < entry.size) {
           const response = await packFetch(entry, '', null, { headers: offset ? { Range: `bytes=${offset}-` } : {} });
@@ -403,12 +408,31 @@ async function fetchFile(entry: ManifestFile, base: FileSystemDirectoryHandle): 
             hasher.init();
           }
           if (response.status === 206 && response.headers.get('Content-Range') !== `bytes ${offset}-${entry.size - 1}/${entry.size}`) throw new Error('Invalid resume response');
-          if (Number(response.headers.get('Content-Length')) !== entry.size - offset) throw new Error('Invalid download length');
+          // Content-Length is the encoded length on some Brotli upstreams;
+          // browser fetch() exposes the decompressed stream. Trust final byte
+          // count and SHA-256 instead when using Android's whole-file fallback.
+          if (!triedWholeFile && Number(response.headers.get('Content-Length')) !== entry.size - offset) throw new Error('Invalid download length');
           await pump(response, entry.size);
           if (offset !== entry.size) throw new Error('Truncated download');
         }
       } catch (error) {
-        if ((error as Error).name === 'QuotaExceededError' || ++failures >= 3) throw error;
+        const err = error as Error;
+        if (err.name === 'QuotaExceededError') throw err;
+        failures++;
+        if (android && parts && !triedWholeFile && /Truncated part/.test(err.message) && failures >= 2) {
+          // The partial route may be returning encoded or incomplete slices.
+          // Restart this one file through its full-file endpoint, not the
+          // downloaded pack or other already verified files.
+          triedWholeFile = true;
+          parts = false;
+          failures = 0;
+          credit(entry, -offset);
+          offset = 0;
+          file.truncate(0);
+          progress();
+          continue;
+        }
+        if (failures >= 3) throw new Error(`${entry.path}: ${err.message} (after ${failures} attempts`);
         // A part that failed midway resumes from its start (?part=k serves whole parts only); the prefix is hashed again.
         if (parts && offset % transportChunk) {
           credit(entry, -(offset % transportChunk));
