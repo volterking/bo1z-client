@@ -1,4 +1,4 @@
-import { controllerMode, isXbox } from './controller.ts';
+import { controllerMode, isXbox, isAndroid } from './controller.ts';
 
 // The game canvas is never touched here: Emscripten transfers it untouched to its thread.
 export type Unsupported = { kind: 'mobile' | 'secure' | 'browser' | 'gpu'; reason: string };
@@ -30,7 +30,7 @@ function wasmSupport() {
 }
 
 export async function checkCapabilities(): Promise<Unsupported | null> {
-  if (!isXbox && (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))) {
+  if (!isXbox && !isAndroid && (/iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))) {
     return { kind: 'mobile', reason: navigator.userAgent };
   }
   if (!isSecureContext) return { kind: 'secure', reason: 'insecure context' };
