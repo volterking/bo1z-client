@@ -212,7 +212,14 @@ export function enter() {
   view.declined = false;
   // Xbox Edge: ask for fullscreen on the player's start-button gesture, not via a timer.
   const full = (settings.fullscreen || controllerMode) && !document.fullscreenElement && document.documentElement.requestFullscreen
-    ? document.documentElement.requestFullscreen().then(lockEscape, () => {}) : Promise.resolve();
+    ? document.documentElement.requestFullscreen().then(async () => {
+      // Android browsers permit orientation.lock only after entering fullscreen.
+      // Fallback: the player can rotate the handset manually if this is denied.
+      if (/Android/i.test(navigator.userAgent)) {
+        try { await screen.orientation.lock('landscape'); } catch {}
+      }
+      await lockEscape();
+    }, () => {}) : Promise.resolve();
   const game = engine;
   Promise.all([full, game.play()]).then(() => {
     if (!controllerMode && document.pointerLockElement !== canvas) throw new Error('The mouse was not captured.');
