@@ -309,10 +309,9 @@ async function fetchFile(entry: ManifestFile, base: FileSystemDirectoryHandle): 
   let offset = same && access.getSize() <= entry.size ? access.getSize() : 0;
   // Brotli parts resume at a part boundary; the prefix on disk is hashed again below.
   let parts = Boolean(transportChunk) && Array.isArray(entry.br) && entry.br.length === Math.ceil(entry.size / transportChunk);
-  // The origin sometimes returns a shorter decoded Brotli slice than the
-  // manifest's transport.chunk promises. On Android, fall back to streaming the
-  // entire file, preserving the final SHA-256 validation.
-  const android = /Android/i.test(navigator.userAgent);
+  // The upstream may return a shorter Brotli slice than the manifest promises.
+  // On all platforms, retry with a whole-file stream after repeated truncated
+  // parts, keeping the existing SHA-256 verification for integrity.
   let triedWholeFile = false;
   if (parts && offset % transportChunk) {
     offset -= offset % transportChunk;
@@ -419,7 +418,7 @@ async function fetchFile(entry: ManifestFile, base: FileSystemDirectoryHandle): 
         const err = error as Error;
         if (err.name === 'QuotaExceededError') throw err;
         failures++;
-        if (android && parts && !triedWholeFile && /Truncated part/.test(err.message) && failures >= 2) {
+        if (parts && !triedWholeFile && /Truncated part/.test(err.message) && failures >= 2) {
           // The partial route may be returning encoded or incomplete slices.
           // Restart this one file through its full-file endpoint, not the
           // downloaded pack or other already verified files.
