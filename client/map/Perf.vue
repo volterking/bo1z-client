@@ -10,6 +10,7 @@ import { link, traffic } from '../net/link.ts';
 // Loaded on the first F3. Engine frames: present intervals from its shared ring (own cursor, telemetry keeps all of its own);
 // page: requestAnimationFrame cadence; the page's long tasks.
 const props = defineProps<{ mode: 'compact' | 'detail' }>();
+const androidFast = /Android/i.test(navigator.userAgent) && new URLSearchParams(location.search).get('fast') !== '0';
 const { t, n } = useI18n();
 const WINDOW_MS = 5000, UPDATE_MS = 500, GRAPH_MS = 4000;
 const RENDERERS: Record<string, string> = { webgpu: 'WebGPU', 'webgpu-pipeline': 'WebGPU', webgl2: 'WebGL 2' };
@@ -159,6 +160,7 @@ onUnmounted(() => {
     <div class="fps"><b :class="s.present.frames ? tone(s.present.fps) : 'bad'">{{ s.present.frames ? Math.round(s.present.fps) : '–' }}</b><span>FPS</span><em>{{ num(s.present.p50Ms) }} ms</em></div>
     <canvas ref="graph"></canvas>
     <div class="row" v-if="mode === 'compact'"><span>p95 <b>{{ num(s.present.p95Ms) }} ms</b></span><span>{{ $t('perf.hitches') }} <b :class="s.present.over33 ? 'warn' : ''">{{ s.present.over33 }}</b></span></div>
+    <div class="row" v-if="mode === 'compact'"><span>Renderer <b>{{ s.renderer }}</b></span><span v-if="androidFast">FAST</span></div>
     <div class="rows" v-else>
       <div class="row"><span>{{ $t('perf.median') }} <b>{{ num(s.present.p50Ms) }} ms</b></span><span>p95 <b>{{ num(s.present.p95Ms) }} ms</b></span></div>
       <div class="row"><span>{{ $t('perf.low') }} <b>{{ s.present.p99Ms ? `${Math.round(1000 / s.present.p99Ms)} FPS` : '–' }}</b></span><span>{{ $t('perf.worst') }} <b>{{ num(s.present.maxMs) }} ms</b></span></div>
