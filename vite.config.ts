@@ -13,13 +13,13 @@ const engine = (file: string) => readFile(path.resolve(import.meta.dirname, 'eng
 const artifacts: Plugin = {
   name: 'bo1z-engine',
   async generateBundle() {
-    // The Xbox browser gets a smaller shared Wasm memory reservation.
-    // Desktop browsers retain the original ~2 GiB memory allocation.
+    // Xbox Edge and Android Chrome/Brave experiment with a smaller shared Wasm memory.
+    // Desktop retains the original ~2 GiB allocation. Append ?wasmMemory=512 to test on desktop.
     const glue = (await engine('KisakBlack-web.mjs')).toString('utf8');
     const needle = 'var INITIAL_MEMORY=2147418112;';
     if (glue.split(needle).length !== 2) throw new Error('Expected exactly one Wasm memory initialization');
-    const xboxMemory = 'var INITIAL_MEMORY=/Xbox/i.test(navigator.userAgent)?536870912:2147418112;';
-    this.emitFile({ type: 'asset', fileName: 'artifacts/KisakBlack-web.mjs', source: glue.replace(needle, xboxMemory) });
+    const mobileMemory = 'var INITIAL_MEMORY=/(Xbox|Android)/i.test(navigator.userAgent)||new URLSearchParams(location.search).get("wasmMemory")==="512"?536870912:2147418112;';
+    this.emitFile({ type: 'asset', fileName: 'artifacts/KisakBlack-web.mjs', source: glue.replace(needle, mobileMemory) });
     const wasm = patchEngine(await engine('KisakBlack-web.wasm'));
     this.emitFile({ type: 'asset', fileName: 'artifacts/KisakBlack-web.wasm', source: patchXboxMemoryLimit(wasm) });
   },
