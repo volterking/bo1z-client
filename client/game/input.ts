@@ -78,10 +78,14 @@ export function captureInput(canvas: HTMLCanvasElement, send: (event: InputEvent
     pressPad('moveRight', 100, !menu && ax(0) > .35); // D
     pressPad('jump', menu ? 13 : 32, down(0)); // A = jump / select
     pressPad('crouch', menu ? 27 : 159, down(1)); // B = crouch / back
-    pressPad('reload', 114, !menu && down(2)); // X
+    pressPad('reload', 114, !menu && down(2)); // X = reload
+    pressPad('interact', 102, !menu && down(2)); // X = interact/use (contextual, like Xbox 360)
     pressPad('switch', 205, !menu && down(3)); // Y = next weapon
-    pressPad('tactical', 113, !menu && down(4)); // LB = Q
-    pressPad('grenade', 103, !menu && down(5)); // RB = G
+    // Q is bound to lean on some PC layouts: never send Q from a controller.
+    pressPad('tactical', 52, !menu && down(4)); // LB = keyboard 4 (experimental tactical slot)
+    pressPad('grenade', 103, !menu && down(5)); // RB = G / lethal grenade
+    pressPad('sprint', 160, !menu && down(10)); // Left stick click = sprint (Shift)
+    pressPad('melee', 118, !menu && down(11)); // Right stick click = melee (V)
     pressPad('aim', 202, !menu && (pad.buttons[6]?.value ?? 0) > .3); // LT = right mouse
     pressPad('shoot', 200, !menu && (pad.buttons[7]?.value ?? 0) > .3); // RT = left mouse
     pressPad('start', 27, down(9)); // Menu = Escape
@@ -96,7 +100,10 @@ export function captureInput(canvas: HTMLCanvasElement, send: (event: InputEvent
       padY = Math.min(size.height, Math.max(0, padY + ax(3) * 11 * dt));
       send({ kind: 'cursor', x: Math.round(padX), y: Math.round(padY) });
     } else {
-      const dx = ax(2) * 13 * dt, dy = ax(3) * 13 * dt;
+      // Stick aim: less twitchy than the PC mouse default; user-tunable.
+      const sensitivity = Number(new URLSearchParams(location.search).get('padSensitivity'));
+      const speed = Number.isFinite(sensitivity) && sensitivity >= 1 && sensitivity <= 20 ? sensitivity : 7;
+      const dx = ax(2) * speed * dt, dy = ax(3) * speed * dt;
       if (Math.abs(dx) + Math.abs(dy) > 0.05) send({ kind: 'mouse', dx, dy });
     }
   }
