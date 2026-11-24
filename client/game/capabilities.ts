@@ -9,7 +9,12 @@ const LIMITS: [string, number][] = [['MAX_TEXTURE_SIZE', 2048], ['MAX_3D_TEXTURE
 
 export function checkRenderer(gl: WebGL2RenderingContext | null): Unsupported | null {
   if (!gl) return { kind: 'gpu', reason: 'no WebGL2' };
-  const missing = ['WEBGL_compressed_texture_s3tc', 'EXT_color_buffer_float'].filter(name => !gl.getExtension(name));
+  // Most Android GPUs expose ETC2/ASTC instead of desktop BC/S3TC.
+// Allow an experimental attempt on Android even without S3TC. This does NOT
+// implement BC texture decoding: the engine may still reject textures later.
+const requiredExtensions = isAndroid ? ['EXT_color_buffer_float'] : ['WEBGL_compressed_texture_s3tc', 'EXT_color_buffer_float'];
+const missing = requiredExtensions.filter(name => !gl.getExtension(name));
+if (isAndroid && !gl.getExtension('WEBGL_compressed_texture_s3tc')) console.warn('Android experimental mode: S3TC unavailable; BC textures may fail in engine');
   if (!gl.getExtension('EXT_texture_norm16')) missing.push(...['OES_texture_float_linear', 'EXT_float_blend'].filter(name => !gl.getExtension(name)));
   for (const [name, minimum] of LIMITS) if (gl.getParameter(gl[name as keyof WebGL2RenderingContext] as number) < minimum) missing.push(`${name} >= ${minimum}`);
   return missing.length ? { kind: 'gpu', reason: missing.join(', ') } : null;
