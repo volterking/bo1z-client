@@ -22,7 +22,14 @@ const artifacts: Plugin = {
     const needle = 'var INITIAL_MEMORY=2147418112;';
     if (glue.split(needle).length !== 2) throw new Error('Expected exactly one Wasm memory initialization');
     const mobileMemory = 'var INITIAL_MEMORY=/Xbox/i.test(navigator.userAgent)?536870912:2147418112;';
-    this.emitFile({ type: 'asset', fileName: 'artifacts/KisakBlack-web.mjs', source: glue.replace(needle, mobileMemory) });
+    // Install a software DXT decoder in each Android engine/GL worker before
+    // the original WebGL2 renderer probes S3TC or uploads compressed textures.
+    // Desktop Chrome and Chromebook stay on the unmodified native WebGL path.
+    const entry = 'async function createKisakBrowser(moduleArg={}){';
+    if (glue.split(entry).length !== 2) throw new Error('Unexpected WebAssembly glue entry point');
+    const mobileDxt = await readFile(path.resolve(import.meta.dirname, 'patch/mobile-dxt-fallback.js'), 'utf8');
+    const engineGlue = glue.replace(needle, mobileMemory).replace(entry, entry + mobileDxt);
+    this.emitFile({ type: 'asset', fileName: 'artifacts/KisakBlack-web.mjs', source: engineGlue });
     const wasm = patchEngine(await engine('KisakBlack-web.wasm'));
     this.emitFile({ type: 'asset', fileName: 'artifacts/KisakBlack-web.wasm', source: patchXboxMemoryLimit(wasm) });
   },
