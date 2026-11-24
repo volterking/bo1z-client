@@ -5,7 +5,8 @@ import { startSession, view } from '../game/session.ts';
 import Loading from './Loading.vue';
 
 const Perf = defineAsyncComponent(() => import('./Perf.vue'));
-const perf = ref<'off' | 'compact' | 'detail'>('off');
+// Show FPS automatically on Android. F3 still cycles compact/detail/off on keyboards.
+const perf = ref<'off' | 'compact' | 'detail'>(/Android/i.test(navigator.userAgent) ? 'compact' : 'off');
 const game = useTemplateRef<HTMLCanvasElement>('game');
 
 // F3, caught on window before the game's keys and Chrome's find-next: compact, detailed, hidden.
