@@ -91,5 +91,23 @@
       return storage.apply(this, arguments);
     return storage.call(this, target, levels, 0x8058, w, h);
   };
+  // Experiment: native game mode remains 800x600, while the visible Android
+  // drawing buffer may be 356x200 / 533x300. Rescale the *default framebuffer*
+  // viewport/scissor only. FBO offscreen targets keep their own coordinates.
+  // This only activates with a drawing buffer below the game's 800x600 minimum.
+  const nativeViewport = p.viewport, nativeScissor = p.scissor;
+  const adaptRect = (gl, x, y, w, h) => {
+    if (gl.drawingBufferWidth >= 800 || gl.drawingBufferHeight >= 600 ||
+        gl.getParameter(gl.DRAW_FRAMEBUFFER_BINDING) !== null) return [x, y, w, h];
+    const sx = gl.drawingBufferWidth / 800, sy = gl.drawingBufferHeight / 600;
+    return [Math.round(x * sx), Math.round(y * sy),
+      Math.max(1, Math.round(w * sx)), Math.max(1, Math.round(h * sy))];
+  };
+  p.viewport = function(x, y, w, h) {
+    return nativeViewport.apply(this, adaptRect(this, x, y, w, h));
+  };
+  p.scissor = function(x, y, w, h) {
+    return nativeScissor.apply(this, adaptRect(this, x, y, w, h));
+  };
   console.info('KISAK_MOBILE_DXT fallback installed');
 })();
