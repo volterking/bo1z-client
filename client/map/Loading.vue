@@ -40,9 +40,9 @@ function failureProblem(failure: Failure): Problem {
   const map = name.value;
   switch (failure.kind) {
     case 'download':
-      if (failure.files) return { ...texts('files'), primary: [t('errors.resume'), retry] };
+      if (failure.files) return { ...texts('files'), text: view.report ? view.report.split('\n')[0] : t('errors.files.text'), primary: [t('errors.resume'), retry], report: Boolean(view.report) };
       return { ...texts('download', { pct: n(view.pct / 100, { style: 'percent' }), map }), ...(!view.pct && { text: t('errors.download.textAnyTime', { map }) }),
-        primary: [t('errors.resume'), retry] };
+        primary: [t('errors.resume'), retry], ...(view.report && { text: view.report.split('\n')[0], report: true }) };
     case 'quota':
       return { ...texts('quota', { map, size: failure.missingBytes ? size(failure.missingBytes) : '' }),
         ...(!failure.missingBytes && { text: t('errors.quota.textUnknown', { map }) }), primary: [t('errors.retry'), retry] };
