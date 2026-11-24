@@ -7,7 +7,7 @@
 export function sizeGameCanvas(canvas: HTMLCanvasElement) {
   const width = Math.max(1, innerWidth), height = Math.max(1, innerHeight);
   const params = new URLSearchParams(location.search);
-  const liteLevel = ['1', '2', '3', '4'].includes(params.get('lite') ?? '') ? Number(params.get('lite')) : 0;
+  const liteLevel = ['1', '2', '3', '4', '5'].includes(params.get('lite') ?? '') ? Number(params.get('lite')) : 0;
   const lite = liteLevel > 0;
   const rawScale = Number(params.get('renderScale'));
   const customScale = params.has('renderScale') && Number.isFinite(rawScale) && rawScale > 0
@@ -18,8 +18,8 @@ export function sizeGameCanvas(canvas: HTMLCanvasElement) {
   if (lite) {
     // Keep aspect ratio while limiting the real WebGL/WebGPU backbuffer.
     // A Chromebook at 1366x768 renders at 640x360 by default.
-    const targetWidth = liteLevel === 3 ? 320 : liteLevel === 4 ? 400 : liteLevel === 2 ? 480 : 640;
-    const targetHeight = liteLevel === 3 ? 240 : liteLevel === 4 ? 300 : liteLevel === 2 ? 360 : 480;
+    const targetWidth = liteLevel === 5 ? 280 : liteLevel === 3 ? 320 : liteLevel === 4 ? 400 : liteLevel === 2 ? 480 : 640;
+    const targetHeight = liteLevel === 5 ? 210 : liteLevel === 3 ? 240 : liteLevel === 4 ? 300 : liteLevel === 2 ? 360 : 480;
     scale = customScale ?? Math.min(1, targetWidth / width, targetHeight / height);
     // Keep a minimum of 256x144 for a usable canvas.
     scale = Math.max(scale, 256 / width, 144 / height);
