@@ -373,6 +373,27 @@ export function createEngine(options: EngineOptions) {
     const fpsParam = new URLSearchParams(location.search).get('fps');
     const fpsCap = fpsParam && /^\\d+$/.test(fpsParam) ? Number(fpsParam) : 0;
     const safeFpsCap = fpsCap >= 15 && fpsCap <= 240 ? Math.round(fpsCap) : 0;
+    // Low-effects mode for Android. Disable via ?fast=0 for an A/B test.
+    // This changes game dvars only; it does NOT claim to bypass the native
+    // 800x600 renderer limit or guarantee a specific frame rate.
+    const mobileFast = /Android/i.test(navigator.userAgent) &&
+      new URLSearchParams(location.search).get('fast') !== '0';
+    const fastGraphics = mobileFast ? [
+      '+set', 'r_picmip_manual', '1',
+      '+set', 'r_picmip', '3',
+      '+set', 'r_picmip_bump', '3',
+      '+set', 'r_picmip_spec', '3',
+      '+set', 'r_picmip_water', '3',
+      '+set', 'r_dof_enable', '0',
+      '+set', 'r_motionblur_enable', '0',
+      '+set', 'r_blur_allowed', '0',
+      '+set', 'r_glow_allowed', '0',
+      '+set', 'r_distortion', '0',
+      '+set', 'r_specular', '0',
+      '+set', 'r_gfxopt_water_simulation', '0',
+      '+set', 'r_lodScaleRigid', '2',
+      '+set', 'r_lodScaleSkinned', '2',
+    ] : [];
     // Dvars precede +devmap so that startup receives the player's settings.
     const args = [
       '+set', 'fs_b', options.opfsRoot, '+set', 'fs_h', '/opfs/user', '+set', 'fs_game', MOD,
@@ -380,6 +401,7 @@ export function createEngine(options: EngineOptions) {
       '+set', 'cg_blood', settings.blood ? '1' : '0',
       '+set', 'kisak_testclient', '0', '+set', 'kisak_scripterrors', '100',
       '+set', 'r_fullscreen', '0', '+set', 'r_aaSamples', '1',
+      ...fastGraphics,
       // r_clear defaults to 2: a blue and orange blink every 512 ms, a development aid.
       '+set', 'r_clear', '0',
       // The canvas thread paces frames with requestAnimationFrame; an integer cap would hold a 120 Hz display at 60.
