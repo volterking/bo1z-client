@@ -47,8 +47,22 @@ async function fromDisk({ base, part }: { base: string; part: number | null }): 
 
 export const pick = (headers: IncomingHttpHeaders): OutgoingHttpHeaders => Object.fromEntries(FORWARDED.filter(name => headers[name]).map(name => [name, headers[name]]));
 
-export const upstream = (url: URL, headers: OutgoingHttpHeaders) => new Promise<IncomingMessage>((resolve, reject) =>
-  https.get({ host: UPSTREAM, path: url.pathname + url.search, headers }, resolve).on('error', reject));
+// The upstream site has moved some public routes from /bo1z/ to /bsz/.
+// Retry only a *404* from the legacy route. Do not retry 403/451 or other
+// access restrictions. The same fallback applies to manifests and pack files.
+function requestUpstream(url: URL, headers: OutgoingHttpHeaders) {
+  return new Promise<IncomingMessage>((resolve, reject) =>
+    https.get({ host: UPSTREAM, path: url.pathname + url.search, headers }, resolve).on('error', reject));
+}
+export async function upstream(url: URL, headers: OutgoingHttpHeaders) {
+  const response = await requestUpstream(url, headers);
+  if (response.statusCode !== 404 || !url.pathname.startsWith('/bo1z/')) return response;
+  response.resume(); // Release the socket for the failed legacy URL.
+  const fallback = new URL(url);
+  fallback.pathname = '/bsz/' + url.pathname.slice('/bo1z/'.length);
+  console.info('Legacy upstream 404; trying new route:', fallback.pathname);
+  return requestUpstream(fallback, headers);
+}
 
 // The cache never expires: a patched wasm must stay paired with the scripts and packs of its version.
 // A lone slice is never stored: prefetch.ts rebuilds the whole file and checks its SHA-256.
