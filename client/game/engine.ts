@@ -371,7 +371,7 @@ export function createEngine(options: EngineOptions) {
     // Optional engine frame cap. Unset = original unlimited behavior.
     // com_maxfps is a game-engine dvar; verify the actual presented FPS in F3.
     const fpsParam = new URLSearchParams(location.search).get('fps');
-    const fpsCap = fpsParam && /^\\d+$/.test(fpsParam) ? Number(fpsParam) : 0;
+    const fpsCap = fpsParam && /^\d+$/.test(fpsParam) ? Number(fpsParam) : 0;
     const safeFpsCap = fpsCap >= 15 && fpsCap <= 240 ? Math.round(fpsCap) : 0;
     // Low-effects mode for Android. Disable via ?fast=0 for an A/B test.
     // This changes game dvars only; it does NOT claim to bypass the native
