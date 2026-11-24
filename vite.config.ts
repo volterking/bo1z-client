@@ -13,13 +13,15 @@ const engine = (file: string) => readFile(path.resolve(import.meta.dirname, 'eng
 const artifacts: Plugin = {
   name: 'bo1z-engine',
   async generateBundle() {
-    // Keep Xbox at 512 MiB and desktop at the original ~2 GiB.
-    // Android's 512 MiB crashed at platform-init (OOM), so trial 1024 MiB.
-    // This controls the WebAssembly linear memory allocation, not process RAM.
+    // Keep Xbox at 512 MiB and desktop unchanged at its original near-2 GiB size.
+    // Android trials the same original near-2 GiB allocation (2 GiB minus one
+    // WebAssembly page / 64 KiB), because exact 2 GiB would exceed the original
+    // Emscripten allocation. This is linear memory, not the browser's total RAM.
+    // Graphics still requires S3TC; increasing memory does not add DXT support.
     const glue = (await engine('KisakBlack-web.mjs')).toString('utf8');
     const needle = 'var INITIAL_MEMORY=2147418112;';
     if (glue.split(needle).length !== 2) throw new Error('Expected exactly one Wasm memory initialization');
-    const mobileMemory = 'var INITIAL_MEMORY=/Xbox/i.test(navigator.userAgent)?536870912:/Android/i.test(navigator.userAgent)?1073741824:2147418112;';
+    const mobileMemory = 'var INITIAL_MEMORY=/Xbox/i.test(navigator.userAgent)?536870912:2147418112;';
     this.emitFile({ type: 'asset', fileName: 'artifacts/KisakBlack-web.mjs', source: glue.replace(needle, mobileMemory) });
     const wasm = patchEngine(await engine('KisakBlack-web.wasm'));
     this.emitFile({ type: 'asset', fileName: 'artifacts/KisakBlack-web.wasm', source: patchXboxMemoryLimit(wasm) });
